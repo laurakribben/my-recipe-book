@@ -26,7 +26,7 @@ export async function createBook(formData: FormData) {
   const user = await getUser();
   if (!user) redirect("/login");
   const name = BookName.safeParse(formData.get("name"));
-  if (!name.success) redirect("/");
+  if (!name.success) redirect(`/?error=${encodeURIComponent("Bitte einen Namen angeben (höchstens 100 Zeichen).")}`);
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -34,7 +34,15 @@ export async function createBook(formData: FormData) {
     .insert({ name: name.data, owner_id: user.id })
     .select("id")
     .single();
-  if (error) throw new Error("Das Rezeptbuch konnte nicht angelegt werden.");
+  if (error) {
+    console.error("Creating a book failed", { code: error.code, message: error.message, details: error.details });
+    // 23503: no profile row for this user (account created before the database setup ran).
+    const reason =
+      error.code === "23503"
+        ? "Zu deinem Konto fehlt das Profil. Siehe web/README.md, Abschnitt „Fehlerbehebung“."
+        : `Datenbankfehler ${error.code ?? ""}`.trim();
+    redirect(`/?error=${encodeURIComponent(`Das Rezeptbuch konnte nicht angelegt werden (${reason}).`)}`);
+  }
   redirect(`/books/${data.id}`);
 }
 

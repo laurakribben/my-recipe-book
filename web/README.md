@@ -72,6 +72,23 @@ npm run import-recipes -- <book-id>
 
 Imported recipes are public by default (as on the old site); add `--visibility private` to change that.
 
+## Troubleshooting
+
+**Creating a recipe book fails ("Profil fehlt" / database error 23503).** Accounts created before
+`0001_init.sql` ran have no profile. Run this once in the SQL Editor (safe to repeat):
+
+```sql
+insert into public.profiles (id, email)
+select id, lower(email) from auth.users
+on conflict (id) do nothing;
+```
+
+**"Invalid path specified in request URL".** `NEXT_PUBLIC_SUPABASE_URL` must be only the project
+address (`https://abcd.supabase.co`), without `/rest/v1/`. The app strips a path since then.
+
+**Errors in general.** Vercel → project → **Logs** shows the server errors; Supabase →
+**Authentication → Logs** shows login and email problems.
+
 ## Development
 
 ```bash

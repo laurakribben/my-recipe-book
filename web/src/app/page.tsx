@@ -4,7 +4,8 @@ import { ROLE_LABELS, type BookRole } from "@/lib/recipe";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { createBook } from "./books/actions";
 
-export default async function HomePage() {
+export default async function HomePage(props: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await props.searchParams;
   const user = await getUser();
 
   if (!user) {
@@ -39,6 +40,7 @@ export default async function HomePage() {
   return (
     <>
       <h1>Meine Rezeptbücher</h1>
+      {error && <p className="notice error">{error}</p>}
       {books.length === 0 ? (
         <p className="empty">Du hast noch kein Rezeptbuch. Lege unten dein erstes an.</p>
       ) : (
