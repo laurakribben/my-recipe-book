@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { FetchedPage } from "@/lib/fetch-page";
-import type { RecipeDraft, SourceType } from "@/lib/recipe";
+import { siteName, type RecipeDraft, type SourceType } from "@/lib/recipe";
 
 export const EXTRACTION_MODEL = "claude-haiku-5-5";
 
@@ -165,6 +165,9 @@ export async function extractRecipe(input: ExtractionInput): Promise<ExtractionR
       visibility: "private",
       image_url: "",
       suggested_image_url: input.kind === "page" ? (input.page.imageUrl ?? "") : "",
+      // Credit the source page for a picture taken over from it.
+      image_credit: input.kind === "page" && input.page.imageUrl ? out.source_author.trim() || siteName(input.page.url) : "",
+      image_source_url: input.kind === "page" && input.page.imageUrl ? input.page.url : "",
     },
     usage: { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens },
   };

@@ -110,6 +110,8 @@ function parseRecipeForm(formData: FormData) {
     steps: textToSteps(get("steps")),
     notes: get("notes"),
     visibility: get("visibility") === "public" ? "public" : "private",
+    image_credit: get("image_credit"),
+    image_source_url: get("image_source_url"),
   });
 }
 
@@ -146,6 +148,13 @@ async function resolveImage(formData: FormData, bookId: string, recipeId: string
   return { kind: "keep" };
 }
 
+/** Adds the picture path; without a picture there is no picture source either. */
+function withImage<T extends { image_credit: string | null; image_source_url: string | null }>(data: T, imagePath: string | null) {
+  return imagePath
+    ? { ...data, image_path: imagePath }
+    : { ...data, image_path: null, image_credit: null, image_source_url: null };
+}
+
 export async function createRecipe(bookId: string, _prev: SaveState, formData: FormData): Promise<SaveState> {
   const access = await getBookForUser(bookId);
   if (!access || !canEdit(access.role)) return { error: "Du darfst in diesem Buch keine Rezepte anlegen." };
@@ -157,12 +166,12 @@ export async function createRecipe(bookId: string, _prev: SaveState, formData: F
   if ("error" in image) return image;
 
   const supabase = await createClient();
+  const imagePath = image.kind === "new" ? image.path : null;
   const { error } = await supabase.from("recipes").insert({
-    ...parsed.data,
+    ...withImage(parsed.data, imagePath),
     id,
     book_id: bookId,
     created_by: access.user.id,
-    image_path: image.kind === "new" ? image.path : null,
   });
   if (error) {
     if (image.kind === "new") await deleteRecipeImages([image.path]);
@@ -195,7 +204,7 @@ export async function updateRecipe(recipeId: string, _prev: SaveState, formData:
   // RLS also checks that only owners and editors of the recipe's book can update it.
   const { error } = await supabase
     .from("recipes")
-    .update({ ...parsed.data, image_path: imagePath })
+    .update(withImage(parsed.data, imagePath))
     .eq("id", recipeId);
   if (error) {
     if (image.kind === "new") await deleteRecipeImages([image.path]);

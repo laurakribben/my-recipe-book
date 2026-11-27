@@ -49,6 +49,10 @@ export type Recipe = {
   visibility: "private" | "public";
   /** Path in the "recipe-images" storage bucket, see lib/images.ts. */
   image_path: string | null;
+  /** Who the picture is from, e.g. "@jillian.barreca" or "Eigenes Foto". */
+  image_credit: string | null;
+  /** Where the picture comes from (web page), shown as a link with the credit. */
+  image_source_url: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -76,6 +80,13 @@ export const RecipeInput = z.object({
   steps: z.array(z.string().trim().min(1).max(3000)).max(100),
   notes: z.string().trim().max(10000).transform((v) => v || null),
   visibility: z.enum(["private", "public"]),
+  image_credit: z.string().trim().max(200).transform((v) => v || null),
+  image_source_url: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine((v) => v === "" || /^https?:\/\//i.test(v), "Die Bildquelle muss mit http:// oder https:// beginnen.")
+    .transform((v) => v || null),
 });
 export type RecipeInput = z.input<typeof RecipeInput>;
 
@@ -100,6 +111,8 @@ export type RecipeDraft = {
   image_url: string;
   /** A picture found on the source web page, offered when the AI fills in a recipe. */
   suggested_image_url: string;
+  image_credit: string;
+  image_source_url: string;
 };
 
 export const EMPTY_DRAFT: RecipeDraft = {
@@ -120,6 +133,8 @@ export const EMPTY_DRAFT: RecipeDraft = {
   visibility: "private",
   image_url: "",
   suggested_image_url: "",
+  image_credit: "",
+  image_source_url: "",
 };
 
 export function recipeToDraft(r: Recipe): RecipeDraft {
@@ -141,6 +156,8 @@ export function recipeToDraft(r: Recipe): RecipeDraft {
     visibility: r.visibility,
     image_url: imageUrl(r.image_path) ?? "",
     suggested_image_url: "",
+    image_credit: r.image_credit ?? "",
+    image_source_url: r.image_source_url ?? "",
   };
 }
 
@@ -180,6 +197,15 @@ export function textToSteps(text: string): string[] {
     .split("\n")
     .map((l) => l.trim().replace(/^\d+[.)]\s+/, ""))
     .filter(Boolean);
+}
+
+/** "https://www.example.com/a/b" -> "example.com" */
+export function siteName(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 export function textToTags(text: string): string[] {

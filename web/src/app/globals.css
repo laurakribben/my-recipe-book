@@ -292,6 +292,9 @@ td form { margin: 0; }
   margin: 0 0 1.25rem;
 }
 .recipe-hero img, .cook-image img { object-fit: cover; }
+.recipe-hero:has(+ .image-credit) { margin-bottom: 0.35rem; }
+.image-credit { margin: 0 0 1.25rem; font-size: 0.8rem; color: var(--muted); text-align: right; word-break: break-word; }
+.image-credit a { color: inherit; }
 .cook-image { aspect-ratio: 16 / 7; }
 
 .image-preview {

@@ -27,7 +27,7 @@ export function RecipeForm({ draft, action, submitLabel }: Props) {
         <input type="text" name="title" defaultValue={draft.title} required maxLength={200} />
       </label>
 
-      <ImageField currentUrl={draft.image_url} suggestedUrl={draft.suggested_image_url} />
+      <ImageField draft={draft} />
 
       <label className="field">
         <span>Zutaten</span>
@@ -126,12 +126,26 @@ export function RecipeForm({ draft, action, submitLabel }: Props) {
 
 /**
  * Picture of the recipe: shows the current (or suggested) picture and lets the user
- * upload a new one, keep the picture from the source website, or remove it.
+ * upload a new one, keep the picture from the source website, or remove it, and say
+ * where the picture is from.
  */
-function ImageField({ currentUrl, suggestedUrl }: { currentUrl: string; suggestedUrl: string }) {
+function ImageField({ draft }: { draft: RecipeDraft }) {
+  const currentUrl = draft.image_url;
+  const suggestedUrl = draft.suggested_image_url;
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [remove, setRemove] = useState(false);
-  const [useSuggested, setUseSuggested] = useState(Boolean(suggestedUrl));
+  const [useSuggested, setUseSuggested] = useState(Boolean(suggestedUrl) && !currentUrl);
+  const [credit, setCredit] = useState(draft.image_credit);
+  const [sourceUrl, setSourceUrl] = useState(draft.image_source_url);
+
+  // The credit filled in for the website's picture doesn't belong to another picture.
+  const websiteCredit = useSuggested ? { credit: draft.image_credit, url: draft.image_source_url } : null;
+  function dropWebsiteCredit() {
+    if (websiteCredit && credit === websiteCredit.credit && sourceUrl === websiteCredit.url) {
+      setCredit("");
+      setSourceUrl("");
+    }
+  }
 
   const preview = fileUrl ?? (currentUrl && !remove ? currentUrl : !currentUrl && useSuggested ? suggestedUrl : null);
 
@@ -151,11 +165,27 @@ function ImageField({ currentUrl, suggestedUrl }: { currentUrl: string; suggeste
           const file = e.target.files?.[0];
           if (fileUrl) URL.revokeObjectURL(fileUrl);
           setFileUrl(file ? URL.createObjectURL(file) : null);
+          if (file) {
+            dropWebsiteCredit();
+            setUseSuggested(false);
+          }
         }}
       />
       {suggestedUrl && !currentUrl && !fileUrl && (
         <label className="row small" style={{ marginTop: "0.5rem" }}>
-          <input type="checkbox" checked={useSuggested} onChange={(e) => setUseSuggested(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={useSuggested}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setCredit(draft.image_credit);
+                setSourceUrl(draft.image_source_url);
+              } else {
+                dropWebsiteCredit();
+              }
+              setUseSuggested(e.target.checked);
+            }}
+          />
           Bild von der Website übernehmen
         </label>
       )}
@@ -168,6 +198,32 @@ function ImageField({ currentUrl, suggestedUrl }: { currentUrl: string; suggeste
         </label>
       )}
       <span className="hint">Ein neues Bild ersetzt das bisherige.</span>
+
+      {preview && (
+        <div className="grid-2" style={{ marginTop: "0.75rem" }}>
+          <label className="field">
+            <span>Bildquelle</span>
+            <input
+              type="text"
+              name="image_credit"
+              value={credit}
+              onChange={(e) => setCredit(e.target.value)}
+              maxLength={200}
+              placeholder="z. B. Eigenes Foto, @name"
+            />
+          </label>
+          <label className="field">
+            <span>Link zur Bildquelle (optional)</span>
+            <input
+              type="url"
+              name="image_source_url"
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              placeholder="https://…"
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
 }

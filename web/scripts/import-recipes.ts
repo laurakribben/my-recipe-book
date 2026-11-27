@@ -53,6 +53,8 @@ function toRow(file: string) {
     steps: Array.isArray(fm.steps) ? fm.steps.map(String) : [],
     notes: plainNotes(content),
     visibility,
+    image_credit: "",
+    image_source_url: "",
   });
   const added = fm.added instanceof Date ? fm.added.toISOString() : fm.added ? new Date(String(fm.added)).toISOString() : undefined;
   return { ...parsed, created_at: added, updated_at: added };

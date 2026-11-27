@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canEdit, getBookForUser } from "@/lib/books";
 import { imageUrl } from "@/lib/images";
-import { SOURCE_TYPE_LABELS } from "@/lib/recipe";
+import { SOURCE_TYPE_LABELS, siteName } from "@/lib/recipe";
 import { loadRecipe } from "@/lib/recipes";
 
 type Props = { params: Promise<{ recipeId: string }> };
@@ -36,6 +36,18 @@ export default async function RecipePage(props: Props) {
         <div className="recipe-hero">
           <Image src={imageUrl(recipe.image_path)!} alt={recipe.title} fill priority sizes="(max-width: 720px) 100vw, 680px" />
         </div>
+      )}
+      {imageUrl(recipe.image_path) && (recipe.image_credit || recipe.image_source_url) && (
+        <p className="image-credit">
+          Bild:{" "}
+          {recipe.image_source_url ? (
+            <a href={recipe.image_source_url} rel="noopener noreferrer nofollow" target="_blank">
+              {recipe.image_credit || siteName(recipe.image_source_url)}
+            </a>
+          ) : (
+            recipe.image_credit
+          )}
+        </p>
       )}
 
       <div className="row small">
