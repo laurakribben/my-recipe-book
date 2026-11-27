@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { imageUrl } from "@/lib/images";
 
 export const SOURCE_TYPES = ["instagram", "website", "youtube", "tiktok", "photo", "text", "other"] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
@@ -46,6 +47,8 @@ export type Recipe = {
   steps: string[];
   notes: string | null;
   visibility: "private" | "public";
+  /** Path in the "recipe-images" storage bucket, see lib/images.ts. */
+  image_path: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -93,6 +96,10 @@ export type RecipeDraft = {
   steps: string[];
   notes: string;
   visibility: "private" | "public";
+  /** Address of the recipe's current picture (when editing), or "". */
+  image_url: string;
+  /** A picture found on the source web page, offered when the AI fills in a recipe. */
+  suggested_image_url: string;
 };
 
 export const EMPTY_DRAFT: RecipeDraft = {
@@ -111,6 +118,8 @@ export const EMPTY_DRAFT: RecipeDraft = {
   steps: [],
   notes: "",
   visibility: "private",
+  image_url: "",
+  suggested_image_url: "",
 };
 
 export function recipeToDraft(r: Recipe): RecipeDraft {
@@ -130,6 +139,8 @@ export function recipeToDraft(r: Recipe): RecipeDraft {
     steps: r.steps,
     notes: r.notes ?? "",
     visibility: r.visibility,
+    image_url: imageUrl(r.image_path) ?? "",
+    suggested_image_url: "",
   };
 }
 

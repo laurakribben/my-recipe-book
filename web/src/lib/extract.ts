@@ -163,6 +163,8 @@ export async function extractRecipe(input: ExtractionInput): Promise<ExtractionR
       steps: out.steps.map((s) => s.trim()).filter(Boolean),
       notes: out.notes,
       visibility: "private",
+      image_url: "",
+      suggested_image_url: input.kind === "page" ? (input.page.imageUrl ?? "") : "",
     },
     usage: { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens },
   };

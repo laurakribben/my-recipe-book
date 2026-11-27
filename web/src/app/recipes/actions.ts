@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { canEdit, getBookForUser, isUuid } from "@/lib/books";
 import { env } from "@/lib/env";
 import { extractRecipe, ExtractionError, type ExtractionInput } from "@/lib/extract";
-import { fetchPage, FetchPageError, isLoginWalled } from "@/lib/fetch-page";
+import { fetchImage, fetchPage, FetchPageError, isLoginWalled } from "@/lib/fetch-page";
+import { deleteRecipeImages, storeRecipeImage } from "@/lib/image-storage";
+import { isImageType } from "@/lib/images";
 import { RecipeInput, SOURCE_TYPES, textToIngredients, textToSteps, textToTags, type RecipeDraft } from "@/lib/recipe";
 import { createClient } from "@/lib/supabase/server";
 
@@ -111,22 +113,65 @@ function parseRecipeForm(formData: FormData) {
   });
 }
 
+type ImageChange = { kind: "keep" } | { kind: "remove" } | { kind: "new"; path: string };
+
+const MAX_UPLOAD_BYTES = 4_000_000;
+
+/**
+ * Works out what happens to the recipe's picture: a newly uploaded file, the picture
+ * suggested from the source web page, removal, or no change. Only call this after
+ * checking that the user may edit recipes in the book.
+ */
+async function resolveImage(formData: FormData, bookId: string, recipeId: string): Promise<ImageChange | { error: string }> {
+  const file = formData.get("image");
+  if (file instanceof File && file.size > 0) {
+    if (!isImageType(file.type)) return { error: "Bitte ein JPG-, PNG-, WebP- oder GIF-Bild wählen." };
+    if (file.size > MAX_UPLOAD_BYTES) return { error: "Das Bild ist zu groß." };
+    const path = await storeRecipeImage(bookId, recipeId, new Uint8Array(await file.arrayBuffer()), file.type);
+    return { kind: "new", path };
+  }
+  if (formData.get("remove_image")) return { kind: "remove" };
+
+  const suggested = String(formData.get("suggested_image_url") ?? "");
+  if (formData.get("use_suggested_image") && /^https?:\/\//i.test(suggested)) {
+    try {
+      const { bytes, type } = await fetchImage(suggested);
+      if (isImageType(type)) return { kind: "new", path: await storeRecipeImage(bookId, recipeId, bytes, type) };
+      console.error("Suggested image has an unsupported type", { type });
+    } catch (error) {
+      // The recipe is still saved, just without the picture; it can be added later.
+      console.error("Suggested image could not be stored", error instanceof Error ? error.message : error);
+    }
+  }
+  return { kind: "keep" };
+}
+
 export async function createRecipe(bookId: string, _prev: SaveState, formData: FormData): Promise<SaveState> {
   const access = await getBookForUser(bookId);
   if (!access || !canEdit(access.role)) return { error: "Du darfst in diesem Buch keine Rezepte anlegen." };
   const parsed = parseRecipeForm(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Bitte die Eingaben prüfen." };
 
+  const id = crypto.randomUUID();
+  const image = await resolveImage(formData, bookId, id);
+  if ("error" in image) return image;
+
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("recipes")
-    .insert({ ...parsed.data, book_id: bookId, created_by: access.user.id })
-    .select("id")
-    .single();
-  if (error) return { error: "Das Rezept konnte nicht gespeichert werden." };
+  const { error } = await supabase.from("recipes").insert({
+    ...parsed.data,
+    id,
+    book_id: bookId,
+    created_by: access.user.id,
+    image_path: image.kind === "new" ? image.path : null,
+  });
+  if (error) {
+    if (image.kind === "new") await deleteRecipeImages([image.path]);
+    console.error("Creating a recipe failed", { code: error.code, message: error.message });
+    return { error: "Das Rezept konnte nicht gespeichert werden." };
+  }
 
   revalidatePath(`/books/${bookId}`);
-  redirect(`/recipes/${data.id}`);
+  redirect(`/recipes/${id}`);
 }
 
 export async function updateRecipe(recipeId: string, _prev: SaveState, formData: FormData): Promise<SaveState> {
@@ -134,25 +179,41 @@ export async function updateRecipe(recipeId: string, _prev: SaveState, formData:
   const parsed = parseRecipeForm(formData);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Bitte die Eingaben prüfen." };
 
-  // RLS only lets owners and editors of the recipe's book update it.
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: current } = await supabase
     .from("recipes")
-    .update(parsed.data)
+    .select("book_id, image_path")
     .eq("id", recipeId)
-    .select("id, book_id")
     .maybeSingle();
-  if (error || !data) return { error: "Das Rezept konnte nicht gespeichert werden." };
+  const access = current ? await getBookForUser(current.book_id) : null;
+  if (!current || !access || !canEdit(access.role)) return { error: "Du darfst dieses Rezept nicht bearbeiten." };
+
+  const image = await resolveImage(formData, current.book_id, recipeId);
+  if ("error" in image) return image;
+  const imagePath = image.kind === "new" ? image.path : image.kind === "remove" ? null : current.image_path;
+
+  // RLS also checks that only owners and editors of the recipe's book can update it.
+  const { error } = await supabase
+    .from("recipes")
+    .update({ ...parsed.data, image_path: imagePath })
+    .eq("id", recipeId);
+  if (error) {
+    if (image.kind === "new") await deleteRecipeImages([image.path]);
+    console.error("Updating a recipe failed", { code: error.code, message: error.message });
+    return { error: "Das Rezept konnte nicht gespeichert werden." };
+  }
+  if (image.kind !== "keep") await deleteRecipeImages([current.image_path]);
 
   revalidatePath(`/recipes/${recipeId}`);
-  revalidatePath(`/books/${data.book_id}`);
+  revalidatePath(`/books/${current.book_id}`);
   redirect(`/recipes/${recipeId}`);
 }
 
 export async function deleteRecipe(recipeId: string, bookId: string) {
   if (!isUuid(recipeId) || !isUuid(bookId)) redirect("/");
   const supabase = await createClient();
-  await supabase.from("recipes").delete().eq("id", recipeId);
+  const { data: deleted } = await supabase.from("recipes").delete().eq("id", recipeId).select("image_path");
+  await deleteRecipeImages((deleted ?? []).map((r) => r.image_path));
   revalidatePath(`/books/${bookId}`);
   redirect(`/books/${bookId}`);
 }

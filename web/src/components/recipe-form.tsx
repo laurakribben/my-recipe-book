@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { ingredientsToText, SOURCE_TYPE_LABELS, SOURCE_TYPES, type RecipeDraft } from "@/lib/recipe";
+import { shrinkImage } from "@/lib/shrink-image";
 import type { SaveState } from "@/app/recipes/actions";
 
 type Props = {
@@ -12,7 +13,11 @@ type Props = {
 
 /** Edit form for all recipe fields. Ingredients and steps are edited as text, one per line. */
 export function RecipeForm({ draft, action, submitLabel }: Props) {
-  const [state, formAction, pending] = useActionState(action, null);
+  const [state, formAction, pending] = useActionState(async (prev: SaveState, formData: FormData) => {
+    const file = formData.get("image");
+    if (file instanceof File && file.size > 0) formData.set("image", await shrinkImage(file));
+    return action(prev, formData);
+  }, null);
   const [incomplete, setIncomplete] = useState(draft.status === "incomplete");
 
   return (
@@ -21,6 +26,8 @@ export function RecipeForm({ draft, action, submitLabel }: Props) {
         <span>Titel</span>
         <input type="text" name="title" defaultValue={draft.title} required maxLength={200} />
       </label>
+
+      <ImageField currentUrl={draft.image_url} suggestedUrl={draft.suggested_image_url} />
 
       <label className="field">
         <span>Zutaten</span>
@@ -114,5 +121,53 @@ export function RecipeForm({ draft, action, submitLabel }: Props) {
         {pending ? "Wird gespeichert…" : submitLabel}
       </button>
     </form>
+  );
+}
+
+/**
+ * Picture of the recipe: shows the current (or suggested) picture and lets the user
+ * upload a new one, keep the picture from the source website, or remove it.
+ */
+function ImageField({ currentUrl, suggestedUrl }: { currentUrl: string; suggestedUrl: string }) {
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [remove, setRemove] = useState(false);
+  const [useSuggested, setUseSuggested] = useState(Boolean(suggestedUrl));
+
+  const preview = fileUrl ?? (currentUrl && !remove ? currentUrl : !currentUrl && useSuggested ? suggestedUrl : null);
+
+  return (
+    <div className="field">
+      <span>Bild</span>
+      {preview && (
+        // A plain <img>: the preview can come from any website or from a local file.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={preview} alt="" className="image-preview" />
+      )}
+      <input
+        type="file"
+        name="image"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (fileUrl) URL.revokeObjectURL(fileUrl);
+          setFileUrl(file ? URL.createObjectURL(file) : null);
+        }}
+      />
+      {suggestedUrl && !currentUrl && !fileUrl && (
+        <label className="row small" style={{ marginTop: "0.5rem" }}>
+          <input type="checkbox" checked={useSuggested} onChange={(e) => setUseSuggested(e.target.checked)} />
+          Bild von der Website übernehmen
+        </label>
+      )}
+      {useSuggested && <input type="hidden" name="use_suggested_image" value="1" />}
+      <input type="hidden" name="suggested_image_url" value={suggestedUrl} />
+      {currentUrl && !fileUrl && (
+        <label className="row small" style={{ marginTop: "0.5rem" }}>
+          <input type="checkbox" name="remove_image" checked={remove} onChange={(e) => setRemove(e.target.checked)} />
+          Bild entfernen
+        </label>
+      )}
+      <span className="hint">Ein neues Bild ersetzt das bisherige.</span>
+    </div>
   );
 }

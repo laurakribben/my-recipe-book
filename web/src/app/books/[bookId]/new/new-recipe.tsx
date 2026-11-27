@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { RecipeForm } from "@/components/recipe-form";
 import { EMPTY_DRAFT, type RecipeDraft } from "@/lib/recipe";
+import { shrinkImage } from "@/lib/shrink-image";
 import type { ExtractState, SaveState } from "@/app/recipes/actions";
 
 type Mode = "link" | "text" | "images" | "manual";
@@ -18,23 +19,6 @@ type Props = {
   extract: (prev: ExtractState, formData: FormData) => Promise<ExtractState>;
   save: (prev: SaveState, formData: FormData) => Promise<SaveState>;
 };
-
-const MAX_SIDE = 1600;
-
-/** Shrinks photos in the browser before upload, so several fit into one request. */
-async function shrinkImage(file: File): Promise<File> {
-  if (file.type === "image/gif") return file;
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
-  if (!blob) return file;
-  return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
-}
 
 export function NewRecipe({ extract, save }: Props) {
   const [mode, setMode] = useState<Mode>("link");

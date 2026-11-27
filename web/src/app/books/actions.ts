@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getBookForUser, isUuid } from "@/lib/books";
 import { env } from "@/lib/env";
+import { deleteRecipeImages } from "@/lib/image-storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient, getUser } from "@/lib/supabase/server";
 
@@ -63,7 +64,9 @@ export async function deleteBook(bookId: string, formData: FormData) {
     redirect(settingsUrl(bookId, "Zum Löschen bitte den Namen des Buchs genau eintippen.", "error"));
   }
   const supabase = await createClient();
-  await supabase.from("books").delete().eq("id", bookId);
+  const { data: recipes } = await supabase.from("recipes").select("image_path").eq("book_id", bookId);
+  const { error } = await supabase.from("books").delete().eq("id", bookId);
+  if (!error) await deleteRecipeImages((recipes ?? []).map((r) => r.image_path));
   redirect("/");
 }
 

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canEdit, getBookForUser } from "@/lib/books";
+import { imageUrl } from "@/lib/images";
 import { SOURCE_TYPE_LABELS } from "@/lib/recipe";
 import { loadRecipe } from "@/lib/recipes";
 
@@ -29,6 +31,12 @@ export default async function RecipePage(props: Props) {
         </p>
       )}
       <h1>{recipe.title}</h1>
+
+      {imageUrl(recipe.image_path) && (
+        <div className="recipe-hero">
+          <Image src={imageUrl(recipe.image_path)!} alt={recipe.title} fill priority sizes="(max-width: 720px) 100vw, 680px" />
+        </div>
+      )}
 
       <div className="row small">
         <Link href={`/recipes/${recipe.id}/cook`} className="button">

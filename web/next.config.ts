@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
   },
+  images: {
+    // Recipe pictures from the Supabase storage bucket (see lib/images.ts). next/image
+    // serves them resized, so the recipe list loads small thumbnails.
+    remotePatterns: [
+      { protocol: "https", hostname: "**.supabase.co", pathname: "/storage/v1/object/public/recipe-images/**" },
+    ],
+  },
 };
 
 export default nextConfig;

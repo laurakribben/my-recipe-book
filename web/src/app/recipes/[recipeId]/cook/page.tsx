@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { imageUrl } from "@/lib/images";
 import { loadRecipe } from "@/lib/recipes";
 import { CookingMode } from "./cooking-mode";
 
@@ -20,6 +21,7 @@ export default async function CookPage(props: Props) {
     <CookingMode
       recipeId={recipe.id}
       title={recipe.title}
+      imageUrl={imageUrl(recipe.image_path)}
       ingredients={recipe.ingredients}
       steps={recipe.steps}
     />

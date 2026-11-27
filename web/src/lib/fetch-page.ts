@@ -19,6 +19,8 @@ export type FetchedPage = {
   recipeJsonLd: unknown[];
   /** Visible page text (shortened). */
   text: string;
+  /** The recipe's photo from JSON-LD or the page's og:image, if any. */
+  imageUrl: string | null;
 };
 
 export function isLoginWalled(url: string): boolean {
@@ -63,8 +65,12 @@ async function assertPublicUrl(raw: string): Promise<URL> {
   return url;
 }
 
-async function readLimited(res: Response): Promise<string> {
-  if (!res.body) return "";
+/**
+ * Reads at most `limit` bytes. If the body is larger, returns the first `limit` bytes
+ * when `truncate` is set, otherwise null.
+ */
+async function readBytes(res: Response, limit: number, truncate = false): Promise<Uint8Array | null> {
+  if (!res.body) return new Uint8Array();
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -72,13 +78,74 @@ async function readLimited(res: Response): Promise<string> {
     const { done, value } = await reader.read();
     if (done) break;
     total += value.byteLength;
-    if (total > MAX_BYTES) {
+    if (total > limit) {
       await reader.cancel();
+      if (!truncate) return null;
+      chunks.push(value.subarray(0, value.byteLength - (total - limit)));
       break;
     }
     chunks.push(value);
   }
-  return new TextDecoder().decode(Buffer.concat(chunks));
+  return Buffer.concat(chunks);
+}
+
+/** GET request that refuses internal addresses, also after each redirect. */
+async function safeFetch(rawUrl: string, accept: string): Promise<{ res: Response; url: URL }> {
+  let url = await assertPublicUrl(rawUrl);
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        headers: {
+          "user-agent": "Mozilla/5.0 (compatible; RecipeBook/1.0)",
+          accept,
+          "accept-language": "de,en;q=0.8",
+        },
+      });
+    } catch {
+      throw new FetchPageError("Die Seite konnte nicht geladen werden.");
+    }
+    const location = res.headers.get("location");
+    if (res.status >= 300 && res.status < 400 && location) {
+      url = await assertPublicUrl(new URL(location, url).toString());
+      continue;
+    }
+    return { res, url };
+  }
+  throw new FetchPageError("Zu viele Weiterleitungen.");
+}
+
+function absoluteHttpUrl(value: unknown, base: string): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const u = new URL(decodeEntities(value.trim()), base);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** schema.org "image" can be a string, an ImageObject or a list of either. */
+function jsonLdImage(image: unknown, base: string): string | null {
+  if (Array.isArray(image)) {
+    for (const item of image) {
+      const found = jsonLdImage(item, base);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (image && typeof image === "object") return absoluteHttpUrl((image as Record<string, unknown>).url, base);
+  return absoluteHttpUrl(image, base);
+}
+
+function metaContent(html: string, property: string): string | null {
+  for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
+    const name = tag.match(/\b(?:property|name)\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (name?.toLowerCase() === property) return tag.match(/\bcontent\s*=\s*["']([^"']*)["']/i)?.[1] ?? null;
+  }
+  return null;
 }
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
@@ -127,39 +194,32 @@ export function parseHtml(html: string, url: string): FetchedPage {
     .trim()
     .slice(0, MAX_TEXT_CHARS);
 
-  return { url, title, recipeJsonLd, text };
+  const imageUrl =
+    recipeJsonLd.map((r) => jsonLdImage((r as Record<string, unknown>).image, url)).find(Boolean) ??
+    absoluteHttpUrl(metaContent(html, "og:image"), url) ??
+    absoluteHttpUrl(metaContent(html, "twitter:image"), url);
+
+  return { url, title, recipeJsonLd, text, imageUrl };
 }
 
 /** Downloads a public web page (following a few redirects) and extracts recipe data and text. */
 export async function fetchPage(rawUrl: string): Promise<FetchedPage> {
-  let url = await assertPublicUrl(rawUrl);
+  const { res, url } = await safeFetch(rawUrl, "text/html,application/xhtml+xml");
+  if (!res.ok) throw new FetchPageError(`Die Seite antwortet mit Fehler ${res.status}.`);
+  const type = res.headers.get("content-type") ?? "";
+  if (!type.includes("html")) throw new FetchPageError("Der Link führt nicht zu einer Webseite.");
+  const bytes = await readBytes(res, MAX_BYTES, true);
+  return parseHtml(new TextDecoder().decode(bytes ?? new Uint8Array()), url.toString());
+}
 
-  for (let i = 0; i <= MAX_REDIRECTS; i++) {
-    let res: Response;
-    try {
-      res = await fetch(url, {
-        redirect: "manual",
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-        headers: {
-          "user-agent": "Mozilla/5.0 (compatible; RecipeBook/1.0)",
-          accept: "text/html,application/xhtml+xml",
-          "accept-language": "de,en;q=0.8",
-        },
-      });
-    } catch {
-      throw new FetchPageError("Die Seite konnte nicht geladen werden.");
-    }
+const MAX_IMAGE_BYTES = 8_000_000;
 
-    const location = res.headers.get("location");
-    if (res.status >= 300 && res.status < 400 && location) {
-      url = await assertPublicUrl(new URL(location, url).toString());
-      continue;
-    }
-    if (!res.ok) throw new FetchPageError(`Die Seite antwortet mit Fehler ${res.status}.`);
-    const type = res.headers.get("content-type") ?? "";
-    if (!type.includes("html")) throw new FetchPageError("Der Link führt nicht zu einer Webseite.");
-
-    return parseHtml(await readLimited(res), url.toString());
-  }
-  throw new FetchPageError("Zu viele Weiterleitungen.");
+/** Downloads a picture from a public web address (e.g. a recipe page's photo). */
+export async function fetchImage(rawUrl: string): Promise<{ bytes: Uint8Array; type: string }> {
+  const { res } = await safeFetch(rawUrl, "image/webp,image/jpeg,image/png,image/gif");
+  if (!res.ok) throw new FetchPageError("Das Bild konnte nicht geladen werden.");
+  const type = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  const bytes = await readBytes(res, MAX_IMAGE_BYTES);
+  if (!bytes) throw new FetchPageError("Das Bild ist zu groß.");
+  return { bytes, type };
 }

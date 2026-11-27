@@ -1,11 +1,18 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { findDurations, formatSeconds } from "@/lib/durations";
 import type { IngredientGroup } from "@/lib/recipe";
 
-type Props = { recipeId: string; title: string; ingredients: IngredientGroup[]; steps: string[] };
+type Props = {
+  recipeId: string;
+  title: string;
+  imageUrl: string | null;
+  ingredients: IngredientGroup[];
+  steps: string[];
+};
 
 type Timer = { id: string; label: string; stepNo: number; endsAt: number; done: boolean };
 
@@ -68,7 +75,7 @@ function playBeeps(ctx: AudioContext | null) {
 
 // ---------------------------------------------------------------- component
 
-function CookingModeClient({ recipeId, title, ingredients, steps }: Props) {
+function CookingModeClient({ recipeId, title, imageUrl, ingredients, steps }: Props) {
   const total = steps.length + 1; // position 0 = ingredients, then one position per step
   const [saved] = useState(() => loadSaved(recipeId));
   const [pos, setPos] = useState(() => Math.min(saved?.pos ?? 0, total - 1));
@@ -301,6 +308,11 @@ function CookingModeClient({ recipeId, title, ingredients, steps }: Props) {
           </div>
         ) : pos === 0 ? (
           <>
+            {imageUrl && (
+              <div className="cook-image">
+                <Image src={imageUrl} alt="" fill sizes="(max-width: 720px) 100vw, 680px" />
+              </div>
+            )}
             <p className="cook-step-label">Zutaten bereitlegen</p>
             {ingredients.length > 0 ? ingredientList : <p className="empty">Keine Zutaten eingetragen.</p>}
             {steps.length === 0 && <p className="empty">Für dieses Rezept sind keine Schritte eingetragen.</p>}

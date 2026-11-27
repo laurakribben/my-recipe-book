@@ -14,6 +14,9 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
 - Each recipe is **privat** (only members of its book) or **öffentlich** (anyone with the link).
 - **Rezept hinzufügen** → Link, Text or Fotos → the AI fills in the recipe → you check and save.
   Instagram/TikTok can't be read directly (login wall): paste the caption or upload screenshots.
+- Each recipe can have a picture: uploaded (shrunk in the browser first), or taken over from the
+  recipe website when the AI reads a link. Pictures are stored in the public-read storage bucket
+  `recipe-images` under random addresses; only the server uploads and deletes them.
 - Each user can run 30 AI extractions per 24 hours (`AI_DAILY_LIMIT`), to keep costs predictable.
 
 ## Setup (once)
@@ -22,7 +25,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
 
 1. Create a free project at supabase.com.
 2. **SQL Editor** → New query → paste `supabase/migrations/0001_init.sql` → **Run**. Then the same
-   with `supabase/migrations/0002_grants.sql`.
+   with `supabase/migrations/0002_grants.sql` and `supabase/migrations/0003_images.sql` (recipe
+   pictures: adds the `image_path` column and the `recipe-images` storage bucket).
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address
