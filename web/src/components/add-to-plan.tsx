@@ -1,4 +1,5 @@
 import { addEntry, addIdea, type IdeaList } from "@/app/plans/actions";
+import { MEALS } from "@/lib/plans";
 
 type Props = {
   recipeId: string;
@@ -61,6 +62,16 @@ export function AddToPlan({ recipeId, plans, defaultDay, defaultServings }: Prop
             <label className="field">
               <span>Tag</span>
               <input type="date" name="day" defaultValue={defaultDay} required />
+            </label>
+            <label className="field">
+              <span>Mahlzeit</span>
+              <select name="meal" defaultValue="abends">
+                {MEALS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="field">
               <span>Portionen</span>

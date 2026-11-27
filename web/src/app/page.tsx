@@ -3,7 +3,7 @@ import type { Book } from "@/lib/books";
 import { ROLE_LABELS, type BookRole } from "@/lib/recipe";
 import { createClient, getUser } from "@/lib/supabase/server";
 import { RecentRecipes } from "@/components/recent";
-import { addDays, getMyPlans, today, weekStartOf, type PlanEntry } from "@/lib/plans";
+import { addDays, getMyPlans, MEALS, mealLabel, today, weekStartOf, type PlanEntry } from "@/lib/plans";
 import { createBook } from "./books/actions";
 
 export default async function HomePage(props: { searchParams: Promise<{ error?: string }> }) {
@@ -45,12 +45,15 @@ export default async function HomePage(props: { searchParams: Promise<{ error?: 
   const { data: todayRows } = plans.length
     ? await supabase
         .from("meal_plan_entries")
-        .select("id, plan_id, recipe_id, title, servings, note")
+        .select("id, plan_id, meal, recipe_id, title, servings, note")
         .in("plan_id", plans.map((p) => p.id))
         .eq("day", todayDate)
         .order("created_at")
     : { data: [] };
-  const todayEntries = (todayRows ?? []) as Pick<PlanEntry, "id" | "plan_id" | "recipe_id" | "title" | "servings" | "note">[];
+  const mealOrder = (meal: string) => MEALS.findIndex((m) => m.id === meal);
+  const todayEntries = ((todayRows ?? []) as Pick<PlanEntry, "id" | "plan_id" | "meal" | "recipe_id" | "title" | "servings" | "note">[]).sort(
+    (a, b) => mealOrder(a.meal) - mealOrder(b.meal),
+  );
   const ownPlan = plans.find((p) => p.role === "owner") ?? plans[0];
   const nextWeek = ownPlan ? addDays(weekStartOf(todayDate, ownPlan.week_start), 7) : null;
   const { data: ideaRows } =
@@ -104,6 +107,7 @@ export default async function HomePage(props: { searchParams: Promise<{ error?: 
           {todayEntries.map((e) => (
             <li key={e.id} className="card">
               <div>
+                <span className="muted small today-meal">{mealLabel(e.meal)}</span>
                 {e.recipe_id ? (
                   <Link href={`/recipes/${e.recipe_id}${e.servings ? `?portionen=${e.servings}` : ""}`}>{e.title}</Link>
                 ) : (

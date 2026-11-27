@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { canEdit, isUuid } from "@/lib/books";
-import { addDays, formatDay, getPlanForUser, isIsoDate, today, weekStartOf } from "@/lib/plans";
+import { addDays, formatDay, getPlanForUser, isIsoDate, isMeal, today, weekStartOf, type Meal } from "@/lib/plans";
 import type { Recipe } from "@/lib/recipe";
 import { parseServings, scaleIngredient } from "@/lib/servings";
 import { assignAisles } from "@/lib/aisles";
@@ -39,6 +39,10 @@ async function requireOwner(planId: string) {
   return access;
 }
 
+function parseMeal(value: FormDataEntryValue | null): Meal {
+  return isMeal(value) ? value : "abends";
+}
+
 function parseServingsField(value: FormDataEntryValue | null): number | null {
   const n = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 100) / 100 : null;
@@ -67,6 +71,7 @@ export async function addEntry(planId: string, formData: FormData) {
   const { error } = await supabase.from("meal_plan_entries").insert({
     plan_id: planId,
     day,
+    meal: parseMeal(formData.get("meal")),
     recipe_id: isUuid(recipeId) ? recipeId : null,
     title,
     servings: parseServingsField(formData.get("servings")),
@@ -89,6 +94,7 @@ export async function updateEntry(planId: string, entryId: string, formData: For
     .from("meal_plan_entries")
     .update({
       day,
+      meal: parseMeal(formData.get("meal")),
       servings: parseServingsField(formData.get("servings")),
       note: String(formData.get("note") ?? "").trim().slice(0, 500) || null,
     })
@@ -101,6 +107,7 @@ export async function updateEntry(planId: string, entryId: string, formData: For
 export type EntrySnapshot = {
   id: string;
   day: string;
+  meal: string;
   recipe_id: string | null;
   title: string;
   servings: number | null;
@@ -117,7 +124,7 @@ export async function deleteEntry(planId: string, entryId: string): Promise<Entr
     .delete()
     .eq("id", entryId)
     .eq("plan_id", planId)
-    .select("id, day, recipe_id, title, servings, note")
+    .select("id, day, meal, recipe_id, title, servings, note")
     .maybeSingle();
   revalidatePath(`/plans/${planId}`);
   return (data as EntrySnapshot | null) ?? null;
@@ -131,6 +138,7 @@ export async function restoreEntry(planId: string, snapshot: EntrySnapshot) {
     id: snapshot.id,
     plan_id: planId,
     day: snapshot.day,
+    meal: isMeal(snapshot.meal) ? snapshot.meal : "abends",
     recipe_id: snapshot.recipe_id,
     title: String(snapshot.title).slice(0, 200),
     servings: parseServingsField(String(snapshot.servings ?? "")),
@@ -470,6 +478,7 @@ export async function planIdea(planId: string, ideaId: string, formData: FormDat
   const { error } = await supabase.from("meal_plan_entries").insert({
     plan_id: planId,
     day,
+    meal: parseMeal(formData.get("meal")),
     recipe_id: idea.recipe_id,
     title: idea.title,
     servings: parseServingsField(formData.get("servings")),

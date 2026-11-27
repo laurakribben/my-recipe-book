@@ -11,10 +11,28 @@ export type PlanIdea = { id: string; recipe_id: string | null; title: string; we
 
 export const WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
+/** Rows of the week table, in order. */
+export const MEALS = [
+  { id: "morgens", label: "Morgens" },
+  { id: "mittags", label: "Mittags" },
+  { id: "abends", label: "Abends" },
+  { id: "snack", label: "Snack" },
+] as const;
+export type Meal = (typeof MEALS)[number]["id"];
+
+export function isMeal(value: unknown): value is Meal {
+  return MEALS.some((m) => m.id === value);
+}
+
+export function mealLabel(meal: string): string {
+  return MEALS.find((m) => m.id === meal)?.label ?? "Abends";
+}
+
 export type PlanEntry = {
   id: string;
   plan_id: string;
   day: string;
+  meal: Meal;
   recipe_id: string | null;
   title: string;
   servings: number | null;

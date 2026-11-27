@@ -12,21 +12,21 @@ import {
   weekStartOf,
   today,
   weekDays,
+  MEALS,
   type PlanEntry,
   type PlanIdea,
 } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 import { UndoableRemove } from "@/components/toast";
+import { AddEntryDialog } from "@/components/plan-dialogs";
+import { WeekTable } from "./week-table";
 import {
   addEntry,
   addWeekToShopping,
-  deleteEntry,
   deleteIdea,
   moveIdea,
   planIdea,
-  restoreEntry,
   restoreIdea,
-  updateEntry,
   type IdeaList,
 } from "../actions";
 
@@ -36,10 +36,6 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const { planId } = await props.params;
   const access = await getPlanForUser(planId);
   return { title: access?.plan.name ?? "Wochenplan" };
-}
-
-function formatServings(n: number) {
-  return n.toLocaleString("de-DE", { maximumFractionDigits: 2 });
 }
 
 export default async function PlanWeekPage(props: Props) {
@@ -58,7 +54,7 @@ export default async function PlanWeekPage(props: Props) {
   const supabase = await createClient();
   const { data: entryRows } = await supabase
     .from("meal_plan_entries")
-    .select("id, plan_id, day, recipe_id, title, servings, note, created_at")
+    .select("id, plan_id, day, meal, recipe_id, title, servings, note, created_at")
     .eq("plan_id", plan.id)
     .gte("day", days[0])
     .lte("day", days[6])
@@ -154,6 +150,16 @@ export default async function PlanWeekPage(props: Props) {
                           </select>
                         </label>
                         <label className="field">
+                          <span>Mahlzeit</span>
+                          <select name="meal" defaultValue="abends">
+                            {MEALS.map((x) => (
+                              <option key={x.id} value={x.id}>
+                                {x.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
                           <span>Portionen</span>
                           <input type="number" name="servings" min={1} max={100} step="any" placeholder="wie im Rezept" />
                         </label>
@@ -226,106 +232,20 @@ export default async function PlanWeekPage(props: Props) {
             <strong>Diese Woche ist noch leer.</strong>
           </p>
           <p className="hint" style={{ marginBottom: 0 }}>
-            Tippe bei einem Tag auf „Gericht hinzufügen“, oder merke Rezepte auf der Rezeptseite mit „Merken für: Diese
+            Tippe auf <strong>+</strong> bei einer Mahlzeit, oder merke Rezepte auf der Rezeptseite mit „Merken für: Diese
             Woche“ vor und plane sie oben ein. Aus den geplanten Rezepten entsteht mit einem Tipp die Einkaufsliste.
           </p>
         </div>
       )}
 
-      <div className="week">
-        {days.map((day) => {
-          const dayEntries = entries.filter((e) => e.day === day);
-          return (
-            <section key={day} id={`tag-${day}`} className={day === todayDate ? "day today" : "day"}>
-              <h2>
-                {formatDay(day)}
-                {day === todayDate && <span className="badge">heute</span>}
-              </h2>
-              {dayEntries.length === 0 && !editable && <p className="empty small">Nichts geplant.</p>}
-              <ul className="plain-list">
-                {dayEntries.map((e) => (
-                  <li key={e.id}>
-                    {e.recipe_id ? (
-                      <Link href={`/recipes/${e.recipe_id}${e.servings ? `?portionen=${e.servings}` : ""}`}>{e.title}</Link>
-                    ) : (
-                      <span>{e.title}</span>
-                    )}
-                    {e.servings && <span className="badge">für {formatServings(e.servings)}</span>}
-                    {e.note && <p className="entry-note">{e.note}</p>}
-                    {editable && (
-                      <details className="disclosure">
-                        <summary>Ändern</summary>
-                        <form action={updateEntry.bind(null, plan.id, e.id)} className="grid-2">
-                          <label className="field">
-                            <span>Tag</span>
-                            <input type="date" name="day" defaultValue={e.day} required />
-                          </label>
-                          <label className="field">
-                            <span>Portionen</span>
-                            <input type="number" name="servings" min={1} max={100} step="any" defaultValue={e.servings ?? ""} />
-                          </label>
-                          <label className="field">
-                            <span>Notiz</span>
-                            <input type="text" name="note" maxLength={500} defaultValue={e.note ?? ""} placeholder="nur im Wochenplan sichtbar" />
-                          </label>
-                          <div className="row">
-                            <button type="submit">Speichern</button>
-                          </div>
-                        </form>
-                        <div style={{ marginTop: "0.5rem" }}>
-                          <UndoableRemove
-                            remove={deleteEntry.bind(null, plan.id, e.id)}
-                            restore={restoreEntry.bind(null, plan.id)}
-                            message={`„${e.title}“ aus dem Plan entfernt.`}
-                          />
-                        </div>
-                      </details>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {editable && (
-                <details className="disclosure">
-                  <summary>Gericht hinzufügen</summary>
-                  <form action={addEntry.bind(null, plan.id)}>
-                    <input type="hidden" name="day" value={day} />
-                    <label className="field">
-                      <span>Rezept</span>
-                      <select name="recipe_id" defaultValue="">
-                        <option value="">– kein Rezept, freier Eintrag –</option>
-                        {[...byBook.entries()].map(([book, list]) => (
-                          <optgroup key={book} label={book}>
-                            {list.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                {r.title}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>oder freier Eintrag</span>
-                      <input type="text" name="title" maxLength={200} placeholder="z. B. Reste, Essen gehen" />
-                    </label>
-                    <div className="grid-2">
-                      <label className="field">
-                        <span>Portionen (optional)</span>
-                        <input type="number" name="servings" min={1} max={100} step="any" placeholder="wie im Rezept" />
-                      </label>
-                      <label className="field">
-                        <span>Notiz (optional)</span>
-                        <input type="text" name="note" maxLength={500} placeholder="z. B. Tofu statt Hähnchen" />
-                      </label>
-                    </div>
-                    <button type="submit">Hinzufügen</button>
-                  </form>
-                </details>
-              )}
-            </section>
-          );
-        })}
-      </div>
+      {editable && (
+        <AddEntryDialog
+          action={addEntry.bind(null, plan.id)}
+          recipeGroups={[...byBook.entries()].map(([book, recipes]) => ({ book, recipes }))}
+        />
+      )}
+
+      <WeekTable planId={plan.id} days={days} todayDate={todayDate} entries={entries} editable={editable} />
     </>
   );
 }

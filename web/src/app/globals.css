@@ -89,6 +89,8 @@ ol li, ul li { margin-bottom: 0.3rem; }
 /* Labels are information, not buttons: soft fill, no border. */
 .badge, .tags span {
   display: inline-block;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: normal;
   margin: 0 0.4rem 0.2rem 0;
   padding: 0.05rem 0.55rem;
   border-radius: 1rem;
@@ -413,12 +415,7 @@ td form { margin: 0; }
 
 .week-nav > span { text-align: center; }
 
-.week .day { padding: 0.25rem 0 0.75rem; border-bottom: 1px solid var(--line); scroll-margin-top: 1rem; }
-.week .day h2 { font-size: 1.05rem; margin: 1rem 0 0.25rem; }
-.week .day.today h2 { color: var(--accent); }
-.week .day .badge, .week .plain-list .badge { margin-left: 0.5rem; }
-.week .plain-list { margin: 0; }
-.week .plain-list > li { border-bottom: none; padding: 0.35rem 0; }
+
 
 details.disclosure { margin-top: 0.4rem; }
 details.disclosure[open] { padding: 0.75rem; margin: 0.5rem 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
@@ -605,3 +602,106 @@ details.disclosure[open] > summary { margin-bottom: 0.75rem; }
 .onboarding li { margin-bottom: 1.25rem; }
 .empty-state { margin-top: 1.5rem; }
 .aisle h2 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
+
+/* ---------------------------------------------------------------- week table
+   Phones: one long list, day by day, each meal with its "+" next to the heading.
+   Wide screens: a table with the days as columns and the meals as rows. */
+
+.week-table { margin-top: 1rem; }
+.meal-head { display: none; }
+.week-day { margin-bottom: 0.5rem; scroll-margin-top: 1rem; }
+.day-head { margin: 1.5rem 0 0.25rem; padding-bottom: 0.3rem; font-size: 1.15rem; border-bottom: 2px solid var(--line); }
+.week-day.today .day-head { color: var(--accent); border-color: var(--accent); }
+.day-head .badge { margin-left: 0.5rem; }
+.dh-date::before { content: ", "; }
+.week-corner { display: none; }
+.cell { padding: 0.4rem 0 0.5rem; border-bottom: 1px solid var(--line); }
+.cell-head { display: flex; align-items: center; gap: 0.5rem; }
+.cell-head h3 { margin: 0; font-size: 0.95rem; color: var(--muted); }
+.icon-button.add-entry, .icon-button.edit-entry { width: 2.25rem; min-width: 2.25rem; height: 2.25rem; min-height: 2.25rem; }
+.icon-button.add-entry svg, .icon-button.edit-entry svg { width: 18px; height: 18px; }
+.cell-entries { list-style: none; padding: 0; margin: 0.25rem 0 0; }
+.cell-entries li { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; padding: 0.3rem 0; }
+.entry-text { min-width: 0; overflow-wrap: anywhere; }
+.entry-text .badge { margin-left: 0.4rem; }
+.entry-text .entry-note { margin-top: 0.15rem; }
+
+@media (min-width: 1000px) {
+  .week-table {
+    /* Wider than the text column, centred on the page. */
+    width: min(96rem, calc(100vw - 48px));
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    display: grid;
+    grid-template-columns: 6.5rem repeat(7, minmax(0, 1fr));
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .week-day { display: contents; }
+  .week-corner { display: block; grid-row: 1; grid-column: 1; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .dh-weekday, .dh-date { display: block; }
+  .dh-date::before { content: none; }
+  .dh-date { font-weight: normal; font-size: 0.85rem; color: var(--muted); }
+  .day-head .badge { margin: 0.2rem 0 0; }
+  .day-head {
+    grid-row: 1;
+    grid-column: var(--col);
+    margin: 0;
+    padding: 0.6rem;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--line);
+    border-left: 1px solid var(--line);
+    background: var(--bg);
+  }
+  .meal-head {
+    display: block;
+    grid-column: 1;
+    padding: 0.6rem;
+    font-weight: bold;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+  }
+  .cell {
+    position: relative;
+    grid-column: var(--col);
+    min-height: 5rem;
+    padding: 0.4rem 0.5rem 2.75rem; /* room for the "+" at the bottom */
+    border-left: 1px solid var(--line);
+  }
+  .cell:not(:last-child) { border-bottom: 1px solid var(--line); }
+  .week-day.today .cell { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+  /* The meal name is in the row header; keep it for screen readers only. */
+  .cell-head h3 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .cell-head .add-entry { position: absolute; right: 0.4rem; bottom: 0.4rem; }
+  .cell-entries { margin: 0; font-size: 0.92rem; line-height: 1.4; }
+  .cell-entries li { padding: 0.3rem 0; }
+  .cell-entries li + li { border-top: 1px dashed var(--line); }
+  .entry-text .badge { display: inline-block; margin: 0.15rem 0 0; }
+}
+
+/* With a mouse, the "+" appears when hovering a cell (and stays reachable by keyboard). */
+@media (min-width: 1000px) and (hover: hover) {
+  .cell .add-entry { opacity: 0; transition: opacity 0.15s; }
+  .cell:hover .add-entry, .cell:focus-within .add-entry { opacity: 1; }
+}
+
+/* ---------------------------------------------------------------- dialogs */
+
+.plan-dialog {
+  width: min(32rem, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 1rem 1.25rem 1.25rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--text) 25%, transparent);
+}
+.plan-dialog::backdrop { background: color-mix(in srgb, #000 45%, transparent); }
+.plan-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.plan-dialog-head h2 { margin: 0; font-size: 1.15rem; }
+.today-meal { display: block; }
