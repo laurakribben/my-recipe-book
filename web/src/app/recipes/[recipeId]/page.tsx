@@ -7,7 +7,6 @@ import { imageUrl } from "@/lib/images";
 import { SOURCE_TYPE_LABELS, siteName } from "@/lib/recipe";
 import { loadRecipe } from "@/lib/recipes";
 import { AddToPlan } from "@/components/add-to-plan";
-import { RecordRecentView } from "@/components/recent";
 import { NutritionFacts } from "@/components/nutrition-facts";
 import { readNutrition } from "@/lib/nutrition";
 import { CookIcon, SettingsIcon } from "@/components/icons";
@@ -44,7 +43,6 @@ export default async function RecipePage(props: Props) {
 
   return (
     <article>
-      <RecordRecentView id={recipe.id} title={recipe.title} />
       {access && (
         <p className="small">
           <Link href={`/books/${access.book.id}`}>← {access.book.name}</Link>

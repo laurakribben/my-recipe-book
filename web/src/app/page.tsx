@@ -8,7 +8,6 @@ import { getProfile } from "@/lib/profile";
 import type { Book } from "@/lib/books";
 import { ROLE_LABELS, type BookRole } from "@/lib/recipe";
 import { createClient, getUser } from "@/lib/supabase/server";
-import { RecentRecipes } from "@/components/recent";
 import { addDays, getMyPlans, MEALS, mealLabel, today, weekStartOf, type PlanEntry } from "@/lib/plans";
 import { createBook } from "./books/actions";
 
@@ -209,7 +208,6 @@ export default async function HomePage(props: { searchParams: Promise<{ error?: 
             </section>
           )}
 
-          <RecentRecipes />
         </div>
         <section>
           <div className="title-row section-head">

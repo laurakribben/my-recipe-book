@@ -28,15 +28,17 @@ type Props = {
 
 type Timer = { id: string; label: string; stepNo: number; endsAt: number; done: boolean };
 
-type Saved = { pos: number; checked: string[]; timers: Timer[]; savedAt: number };
+type Saved = { checked: string[]; timers: Timer[]; savedAt: number };
 
-const MAX_AGE_MS = 12 * 60 * 60 * 1000;
+/** Progress is forgotten after two hours without cooking. */
+const MAX_AGE_S = 2 * 60 * 60;
+const MAX_AGE_MS = MAX_AGE_S * 1000;
 
 const subscribeNothing = () => () => {};
 
 /**
  * Cooking mode: keeps the screen on and shows the recipe one step at a time.
- * Rendered only in the browser, because progress and timers are kept in localStorage.
+ * Rendered only in the browser: the current step is kept in a cookie, ticks and timers in localStorage.
  */
 export function CookingMode(props: Props) {
   const inBrowser = useSyncExternalStore(subscribeNothing, () => true, () => false);
@@ -46,6 +48,25 @@ export function CookingMode(props: Props) {
 
 function storageKey(recipeId: string) {
   return `cook:v1:${recipeId}`;
+}
+
+// The current step is kept in a cookie that expires two hours after the last step change.
+function positionCookie(recipeId: string) {
+  return `cook-pos-${recipeId}`;
+}
+
+function loadPosition(recipeId: string): number {
+  const name = positionCookie(recipeId);
+  const value = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+  const pos = Number(value);
+  return Number.isInteger(pos) && pos >= 0 ? pos : 0;
+}
+
+function savePosition(recipeId: string, pos: number) {
+  document.cookie = `${positionCookie(recipeId)}=${pos}; max-age=${MAX_AGE_S}; path=/; SameSite=Lax`;
 }
 
 function loadSaved(recipeId: string): Saved | null {
@@ -107,7 +128,7 @@ function CookingModeClient({
   const ingredients = scaleGroups(originalIngredients, factor);
   const total = steps.length + 1; // position 0 = ingredients, then one position per step
   const [saved] = useState(() => loadSaved(recipeId));
-  const [pos, setPos] = useState(() => Math.min(saved?.pos ?? 0, total - 1));
+  const [pos, setPos] = useState(() => Math.min(loadPosition(recipeId), total - 1));
   const [finished, setFinished] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(() => new Set(saved?.checked ?? []));
   const [timers, setTimers] = useState<Timer[]>(() => saved?.timers ?? []);
@@ -128,12 +149,13 @@ function CookingModeClient({
   // Keep progress, ticked ingredients and timers when the page is left or reloaded.
   useEffect(() => {
     try {
-      const data: Saved = { pos, checked: [...checked], timers, savedAt: Date.now() };
+      const data: Saved = { checked: [...checked], timers, savedAt: Date.now() };
       localStorage.setItem(storageKey(recipeId), JSON.stringify(data));
     } catch {
       // Private mode or storage blocked: cooking mode still works, it just won't remember.
     }
-  }, [recipeId, pos, checked, timers]);
+  }, [recipeId, checked, timers]);
+  useEffect(() => savePosition(recipeId, pos), [recipeId, pos]);
 
   // Keep the screen on. Browsers drop the lock when the tab is hidden, so take it again on return.
   useEffect(() => {
