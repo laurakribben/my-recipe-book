@@ -2,6 +2,10 @@
 
 A recipe book that turns links (Instagram, websites, videos) into clean recipes.
 
+**New:** `web/` contains the full app with logins, shared recipe books, editing and built-in AI
+extraction. See [`web/README.md`](web/README.md) for setup. The GitHub Pages site and issue
+workflow below keep working until the app is live.
+
 ## How it works
 
 1. **Save a link:** open a new issue with the **Recipe link** template and paste the link.

@@ -1,6 +1,19 @@
-# My Recipe Book: processing workflow
+# My Recipe Book
 
-This repository is a recipe book. GitHub Issues is the inbox, `_recipes/` is the storage,
+## Web app (`web/`)
+
+`web/` is the new Next.js app (Supabase for database/login, Claude Haiku 5.5 for extraction,
+hosted on Vercel); setup and architecture are in `web/README.md`. Access rules live in the
+database (`web/supabase/migrations/`), so every new table needs RLS policies. Next.js 16 differs
+from older versions: read `web/AGENTS.md` before changing app code. Check changes with
+`npm run typecheck && npm run lint && npm run build` in `web/`.
+
+The extraction prompt in `web/src/lib/extract.ts` follows the same recipe rules as below
+(German, never guess, keep amounts); keep the two in sync.
+
+## Old site: processing workflow
+
+Until the web app is live, this repository is also the old recipe book. GitHub Issues is the inbox, `_recipes/` is the storage,
 and GitHub Pages builds the website from it with Jekyll (no build step to run by hand).
 
 ## When asked to "process the links" (or similar)
