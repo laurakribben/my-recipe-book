@@ -18,7 +18,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Link href="/" className="brand">
             Mein Rezeptbuch
           </Link>
-          <nav>
+          <nav className="row">
+            {user && (
+              <>
+                <Link href="/">Rezeptbücher</Link>
+                <Link href="/plans">Wochenplan</Link>
+              </>
+            )}
             {user ? (
               <form action="/auth/signout" method="post">
                 <span className="muted user-email">{user.email}</span>

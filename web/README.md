@@ -26,6 +26,10 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
 - Servings: the recipe page and cooking mode have a "− 4 Portionen +" control that recalculates the
   ingredient amounts for the current browser session only (`src/lib/servings.ts`). When adding a
   recipe, an optional "Portionen" field makes the AI convert all amounts, steps included.
+- Wochenplan (`/plans`): each user gets a personal meal plan (days with dishes, recipes or free
+  entries, servings per entry) that can be shared like a recipe book. "Einkaufsliste für diese
+  Woche" puts the ingredients of the week's recipes, scaled to the planned servings, on the plan's
+  shared shopping list. Viewers of a plan can tick items off but change nothing else.
 - Each user can run 30 AI extractions per 24 hours (`AI_DAILY_LIMIT`), to keep costs predictable.
 
 ## Setup (once)
@@ -37,7 +41,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
    with `supabase/migrations/0002_grants.sql` and `supabase/migrations/0003_images.sql` (recipe
    pictures: adds the `image_path` column and the `recipe-images` storage bucket) and
    `supabase/migrations/0004_image_credit.sql` (picture source shown under the picture) and
-   `supabase/migrations/0005_step_ingredients.sql` (ingredients per step in cooking mode).
+   `supabase/migrations/0005_step_ingredients.sql` (ingredients per step in cooking mode) and
+   `supabase/migrations/0006_meal_plans.sql` (meal plans and shopping lists).
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address

@@ -1,0 +1,284 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { canEdit, isUuid } from "@/lib/books";
+import { addDays, formatDay, getPlanForUser, isIsoDate, mondayOf } from "@/lib/plans";
+import type { Recipe } from "@/lib/recipe";
+import { parseServings, scaleIngredient } from "@/lib/servings";
+import { shareWithEmail } from "@/lib/sharing";
+import { createClient } from "@/lib/supabase/server";
+
+const ShareRole = z.enum(["editor", "viewer"]);
+const PlanName = z.string().trim().min(1).max(100);
+
+function weekUrl(planId: string, day: string) {
+  return `/plans/${planId}?woche=${mondayOf(day)}`;
+}
+
+function settingsUrl(planId: string, msg: string, kind: "ok" | "error" = "ok") {
+  return `/plans/${planId}/settings?${kind}=${encodeURIComponent(msg)}`;
+}
+
+function shoppingUrl(planId: string, msg: string, kind: "ok" | "error" = "ok") {
+  return `/plans/${planId}/einkauf?${kind}=${encodeURIComponent(msg)}`;
+}
+
+async function requireEditor(planId: string) {
+  const access = await getPlanForUser(planId);
+  if (!access || !canEdit(access.role)) redirect("/plans");
+  return access;
+}
+
+async function requireOwner(planId: string) {
+  const access = await getPlanForUser(planId);
+  if (!access || access.role !== "owner") redirect("/plans");
+  return access;
+}
+
+function parseServingsField(value: FormDataEntryValue | null): number | null {
+  const n = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 100) / 100 : null;
+}
+
+// ---------------------------------------------------------------- entries
+
+/** Adds a recipe or a free entry ("Reste") to a day. Used by the week view and the recipe page. */
+export async function addEntry(planId: string, formData: FormData) {
+  const { user } = await requireEditor(planId);
+  const day = String(formData.get("day") ?? "");
+  if (!isIsoDate(day)) redirect(`/plans/${planId}`);
+
+  const recipeId = String(formData.get("recipe_id") ?? "");
+  let title = String(formData.get("title") ?? "").trim().slice(0, 200);
+  const supabase = await createClient();
+
+  if (isUuid(recipeId)) {
+    // RLS: only recipes the user can see can be planned.
+    const { data: recipe } = await supabase.from("recipes").select("title").eq("id", recipeId).maybeSingle();
+    if (!recipe) redirect(weekUrl(planId, day));
+    title = recipe.title;
+  }
+  if (!title) redirect(weekUrl(planId, day));
+
+  const { error } = await supabase.from("meal_plan_entries").insert({
+    plan_id: planId,
+    day,
+    recipe_id: isUuid(recipeId) ? recipeId : null,
+    title,
+    servings: parseServingsField(formData.get("servings")),
+    note: String(formData.get("note") ?? "").trim().slice(0, 500) || null,
+    created_by: user.id,
+  });
+  if (error) console.error("Adding a plan entry failed", { code: error.code, message: error.message });
+
+  revalidatePath(`/plans/${planId}`);
+  const back = String(formData.get("back") ?? "");
+  redirect(back.startsWith("/recipes/") ? `${back}?geplant=${day}` : `${weekUrl(planId, day)}#tag-${day}`);
+}
+
+export async function updateEntry(planId: string, entryId: string, formData: FormData) {
+  await requireEditor(planId);
+  const day = String(formData.get("day") ?? "");
+  if (!isUuid(entryId) || !isIsoDate(day)) redirect(`/plans/${planId}`);
+  const supabase = await createClient();
+  await supabase
+    .from("meal_plan_entries")
+    .update({
+      day,
+      servings: parseServingsField(formData.get("servings")),
+      note: String(formData.get("note") ?? "").trim().slice(0, 500) || null,
+    })
+    .eq("id", entryId)
+    .eq("plan_id", planId);
+  revalidatePath(`/plans/${planId}`);
+  redirect(`${weekUrl(planId, day)}#tag-${day}`);
+}
+
+export async function deleteEntry(planId: string, entryId: string, day: string) {
+  await requireEditor(planId);
+  if (!isUuid(entryId)) redirect(`/plans/${planId}`);
+  const supabase = await createClient();
+  await supabase.from("meal_plan_entries").delete().eq("id", entryId).eq("plan_id", planId);
+  revalidatePath(`/plans/${planId}`);
+  redirect(isIsoDate(day) ? `${weekUrl(planId, day)}#tag-${day}` : `/plans/${planId}`);
+}
+
+// ---------------------------------------------------------------- shopping list
+
+/**
+ * Adds the ingredients of all recipes planned in a week to the shopping list, scaled
+ * to each entry's servings. Entries already on the list are skipped, so it can be
+ * pressed again after planning more dishes.
+ */
+export async function addWeekToShopping(planId: string, monday: string) {
+  const { user } = await requireEditor(planId);
+  if (!isIsoDate(monday)) redirect(`/plans/${planId}`);
+  const supabase = await createClient();
+
+  const { data: entries } = await supabase
+    .from("meal_plan_entries")
+    .select("id, day, recipe_id, title, servings")
+    .eq("plan_id", planId)
+    .gte("day", monday)
+    .lte("day", addDays(monday, 6))
+    .not("recipe_id", "is", null)
+    .order("day");
+  const { data: existing } = await supabase.from("shopping_items").select("entry_id").eq("plan_id", planId);
+  const done = new Set((existing ?? []).map((i) => i.entry_id).filter(Boolean));
+  const todo = (entries ?? []).filter((e) => !done.has(e.id));
+
+  if (todo.length === 0) {
+    redirect(shoppingUrl(planId, (entries ?? []).length ? "Die Rezepte dieser Woche stehen schon auf der Liste." : "In dieser Woche sind keine Rezepte geplant."));
+  }
+
+  // RLS: recipes the user can't see (e.g. in a book that isn't shared with them) are skipped.
+  const { data: recipes } = await supabase
+    .from("recipes")
+    .select("id, title, servings, ingredients")
+    .in("id", todo.map((e) => e.recipe_id));
+  const byId = new Map((recipes ?? []).map((r) => [r.id, r as Pick<Recipe, "id" | "title" | "servings" | "ingredients">]));
+
+  const rows = [];
+  let skipped = 0;
+  for (const entry of todo) {
+    const recipe = byId.get(entry.recipe_id);
+    if (!recipe) {
+      skipped++;
+      continue;
+    }
+    const base = parseServings(recipe.servings);
+    const factor = base && entry.servings ? entry.servings / base : 1;
+    const weekday = formatDay(entry.day).split(",")[0];
+    for (const group of recipe.ingredients) {
+      for (const item of group.items) {
+        rows.push({
+          plan_id: planId,
+          text: scaleIngredient(item, factor).slice(0, 300),
+          entry_id: entry.id,
+          source: `${recipe.title} (${weekday})`.slice(0, 200),
+          created_by: user.id,
+        });
+      }
+    }
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from("shopping_items").insert(rows);
+    if (error) {
+      console.error("Adding to the shopping list failed", { code: error.code, message: error.message });
+      redirect(shoppingUrl(planId, "Die Zutaten konnten nicht übernommen werden.", "error"));
+    }
+  }
+  revalidatePath(`/plans/${planId}/einkauf`);
+  const recipesAdded = todo.length - skipped;
+  redirect(
+    shoppingUrl(
+      planId,
+      `${rows.length} Zutaten aus ${recipesAdded} ${recipesAdded === 1 ? "Rezept" : "Rezepten"} übernommen.` +
+        (skipped ? ` ${skipped} Rezept(e) übersprungen, weil du keinen Zugriff darauf hast.` : ""),
+    ),
+  );
+}
+
+/** Adds own items; several lines become several items. */
+export async function addShoppingItems(planId: string, formData: FormData) {
+  const { user } = await requireEditor(planId);
+  const lines = String(formData.get("text") ?? "")
+    .split("\n")
+    .map((l) => l.trim().slice(0, 300))
+    .filter(Boolean)
+    .slice(0, 50);
+  if (lines.length > 0) {
+    const supabase = await createClient();
+    await supabase
+      .from("shopping_items")
+      .insert(lines.map((text) => ({ plan_id: planId, text, created_by: user.id })));
+  }
+  revalidatePath(`/plans/${planId}/einkauf`);
+}
+
+/** Ticks an item off (or back on). Everyone in the plan may do this. */
+export async function setItemChecked(planId: string, itemId: string, checked: boolean) {
+  const access = await getPlanForUser(planId);
+  if (!access || !isUuid(itemId)) return;
+  const supabase = await createClient();
+  await supabase.from("shopping_items").update({ checked }).eq("id", itemId).eq("plan_id", planId);
+  revalidatePath(`/plans/${planId}/einkauf`);
+}
+
+export async function deleteShoppingItem(planId: string, itemId: string) {
+  await requireEditor(planId);
+  if (!isUuid(itemId)) return;
+  const supabase = await createClient();
+  await supabase.from("shopping_items").delete().eq("id", itemId).eq("plan_id", planId);
+  revalidatePath(`/plans/${planId}/einkauf`);
+}
+
+export async function clearShoppingItems(planId: string, onlyChecked: boolean) {
+  await requireEditor(planId);
+  const supabase = await createClient();
+  let query = supabase.from("shopping_items").delete().eq("plan_id", planId);
+  if (onlyChecked) query = query.eq("checked", true);
+  await query;
+  revalidatePath(`/plans/${planId}/einkauf`);
+  redirect(shoppingUrl(planId, onlyChecked ? "Erledigte Einträge entfernt." : "Liste geleert."));
+}
+
+// ---------------------------------------------------------------- sharing and settings
+
+export async function sharePlan(planId: string, formData: FormData) {
+  const { user } = await requireOwner(planId);
+  const email = z.email().safeParse(String(formData.get("email") ?? "").trim().toLowerCase());
+  const role = ShareRole.safeParse(formData.get("role"));
+  if (!email.success || !role.success) redirect(settingsUrl(planId, "Bitte eine gültige E-Mail-Adresse angeben.", "error"));
+  if (email.data === user.email?.toLowerCase()) redirect(settingsUrl(planId, "Das ist dein eigener Plan.", "error"));
+
+  const result = await shareWithEmail("plan", planId, email.data, role.data, user.id);
+  revalidatePath(`/plans/${planId}/settings`);
+  redirect(settingsUrl(planId, result.message, result.ok ? "ok" : "error"));
+}
+
+export async function changePlanMemberRole(planId: string, userId: string, formData: FormData) {
+  await requireOwner(planId);
+  const role = ShareRole.safeParse(formData.get("role"));
+  if (!role.success || !isUuid(userId)) redirect(settingsUrl(planId, "Ungültige Rolle.", "error"));
+  const supabase = await createClient();
+  await supabase.from("meal_plan_members").update({ role: role.data }).eq("plan_id", planId).eq("user_id", userId);
+  redirect(settingsUrl(planId, "Rolle geändert."));
+}
+
+export async function removePlanMember(planId: string, userId: string) {
+  await requireOwner(planId);
+  if (!isUuid(userId)) redirect(settingsUrl(planId, "Ungültige Person.", "error"));
+  const supabase = await createClient();
+  await supabase.from("meal_plan_members").delete().eq("plan_id", planId).eq("user_id", userId);
+  redirect(settingsUrl(planId, "Zugriff entfernt."));
+}
+
+export async function withdrawPlanInvite(planId: string, inviteId: string) {
+  await requireOwner(planId);
+  if (!isUuid(inviteId)) redirect(settingsUrl(planId, "Ungültige Einladung.", "error"));
+  const supabase = await createClient();
+  await supabase.from("meal_plan_invites").delete().eq("id", inviteId).eq("plan_id", planId);
+  redirect(settingsUrl(planId, "Einladung zurückgezogen."));
+}
+
+export async function renamePlan(planId: string, formData: FormData) {
+  await requireOwner(planId);
+  const name = PlanName.safeParse(formData.get("name"));
+  if (!name.success) redirect(settingsUrl(planId, "Bitte einen Namen angeben.", "error"));
+  const supabase = await createClient();
+  await supabase.from("meal_plans").update({ name: name.data }).eq("id", planId);
+  revalidatePath(`/plans/${planId}`, "layout");
+  redirect(settingsUrl(planId, "Name gespeichert."));
+}
+
+export async function leavePlan(planId: string) {
+  const access = await getPlanForUser(planId);
+  if (!access || access.role === "owner") redirect("/plans");
+  const supabase = await createClient();
+  await supabase.from("meal_plan_members").delete().eq("plan_id", planId).eq("user_id", access.user.id);
+  redirect("/plans");
+}

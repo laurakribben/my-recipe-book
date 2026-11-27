@@ -4,9 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getBookForUser, isUuid } from "@/lib/books";
-import { env } from "@/lib/env";
 import { deleteRecipeImages } from "@/lib/image-storage";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { shareWithEmail } from "@/lib/sharing";
 import { createClient, getUser } from "@/lib/supabase/server";
 
 const BookName = z.string().trim().min(1).max(100);
@@ -85,35 +84,9 @@ export async function shareBook(bookId: string, formData: FormData) {
     redirect(settingsUrl(bookId, "Du bist schon Eigentümer:in dieses Buchs.", "error"));
   }
 
-  // The admin client is needed to find accounts by email and to send invites.
-  // The owner check above is what authorises this.
-  const admin = createAdminClient();
-  const { data: existing } = await admin.from("profiles").select("id").eq("email", email.data).maybeSingle();
-
-  if (existing) {
-    const { error } = await admin
-      .from("book_members")
-      .upsert({ book_id: bookId, user_id: existing.id, role: role.data }, { onConflict: "book_id,user_id" });
-    if (error) redirect(settingsUrl(bookId, "Teilen hat nicht geklappt.", "error"));
-    revalidatePath(`/books/${bookId}/settings`);
-    redirect(settingsUrl(bookId, `Geteilt mit ${email.data}.`));
-  }
-
-  const { error: inviteRowError } = await admin
-    .from("book_invites")
-    .upsert({ book_id: bookId, email: email.data, role: role.data, invited_by: user.id }, { onConflict: "book_id,email" });
-  if (inviteRowError) redirect(settingsUrl(bookId, "Die Einladung konnte nicht gespeichert werden.", "error"));
-
-  const { error: mailError } = await admin.auth.admin.inviteUserByEmail(email.data, {
-    redirectTo: `${env.siteUrl()}/`,
-  });
-  if (mailError) {
-    await admin.from("book_invites").delete().eq("book_id", bookId).eq("email", email.data);
-    redirect(settingsUrl(bookId, "Die Einladungs-E-Mail konnte nicht gesendet werden.", "error"));
-  }
-
+  const result = await shareWithEmail("book", bookId, email.data, role.data, user.id);
   revalidatePath(`/books/${bookId}/settings`);
-  redirect(settingsUrl(bookId, `Einladung an ${email.data} gesendet.`));
+  redirect(settingsUrl(bookId, result.message, result.ok ? "ok" : "error"));
 }
 
 export async function changeMemberRole(bookId: string, userId: string, formData: FormData) {

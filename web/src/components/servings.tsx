@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import type { IngredientGroup } from "@/lib/recipe";
 import { FACTOR_STEPS, formatAmount, scaleIngredient } from "@/lib/servings";
 
@@ -102,12 +102,19 @@ export function RecipeIngredients({
   recipeId,
   base,
   ingredients,
+  initialServings,
 }: {
   recipeId: string;
   base: number | null;
   ingredients: IngredientGroup[];
+  /** Servings planned in the meal plan (?portionen=): applied once when the page opens. */
+  initialServings?: number | null;
 }) {
   const [factor, setFactor] = useServingsFactor(recipeId);
+
+  useEffect(() => {
+    if (base && initialServings) writeFactor(recipeId, initialServings / base);
+  }, [recipeId, base, initialServings]);
   const scaled = scaleGroups(ingredients, factor);
 
   return (

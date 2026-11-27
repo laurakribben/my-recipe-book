@@ -6,10 +6,16 @@ import { canEdit, getBookForUser } from "@/lib/books";
 import { imageUrl } from "@/lib/images";
 import { SOURCE_TYPE_LABELS, siteName } from "@/lib/recipe";
 import { loadRecipe } from "@/lib/recipes";
+import { AddToPlan } from "@/components/add-to-plan";
+import { formatDay, getMyPlans, isIsoDate, today } from "@/lib/plans";
+import { getUser } from "@/lib/supabase/server";
 import { parseServings } from "@/lib/servings";
 import { RecipeIngredients } from "@/components/servings";
 
-type Props = { params: Promise<{ recipeId: string }> };
+type Props = {
+  params: Promise<{ recipeId: string }>;
+  searchParams: Promise<{ portionen?: string; geplant?: string }>;
+};
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { recipeId } = await props.params;
@@ -21,9 +27,14 @@ const dateFormat = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-
 
 export default async function RecipePage(props: Props) {
   const { recipeId } = await props.params;
+  const { portionen, geplant } = await props.searchParams;
   const recipe = await loadRecipe(recipeId);
   if (!recipe) notFound();
   const access = await getBookForUser(recipe.book_id);
+  const user = await getUser();
+  const plans = user ? (await getMyPlans(user.id)).filter((p) => canEdit(p.role)) : [];
+  const base = parseServings(recipe.servings);
+  const plannedServings = Number(portionen);
 
   return (
     <article>
@@ -52,6 +63,11 @@ export default async function RecipePage(props: Props) {
         </p>
       )}
 
+      {isIsoDate(geplant) && (
+        <p className="notice success">
+          Eingeplant für {formatDay(geplant)}. <Link href={`/plans?woche=${geplant}`}>Zum Wochenplan</Link>
+        </p>
+      )}
       <div className="row small">
         <Link href={`/recipes/${recipe.id}/cook`} className="button">
           Kochmodus
@@ -59,6 +75,14 @@ export default async function RecipePage(props: Props) {
         {access && <span className="badge">{recipe.visibility === "public" ? "öffentlich" : "privat"}</span>}
         {access && canEdit(access.role) && <Link href={`/recipes/${recipe.id}/edit`}>Bearbeiten</Link>}
       </div>
+      {user && (
+        <AddToPlan
+          recipeId={recipe.id}
+          plans={plans.map((p) => ({ id: p.id, name: p.name }))}
+          defaultDay={today()}
+          defaultServings={base}
+        />
+      )}
 
       {recipe.status === "incomplete" && (
         <p className="notice warning">
@@ -82,7 +106,12 @@ export default async function RecipePage(props: Props) {
       )}
 
       <h2>Zutaten</h2>
-      <RecipeIngredients recipeId={recipe.id} base={parseServings(recipe.servings)} ingredients={recipe.ingredients} />
+      <RecipeIngredients
+        recipeId={recipe.id}
+        base={base}
+        ingredients={recipe.ingredients}
+        initialServings={plannedServings > 0 && plannedServings <= 100 ? plannedServings : null}
+      />
 
       <h2>Zubereitung</h2>
       {recipe.steps.length > 0 ? (
