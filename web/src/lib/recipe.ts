@@ -53,6 +53,8 @@ export type Recipe = {
   image_credit: string | null;
   /** Where the picture comes from (web page), shown as a link with the credit. */
   image_source_url: string | null;
+  /** Ingredients with amounts used in each step (one list per step), or null if not assigned. */
+  step_ingredients: string[][] | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -113,6 +115,8 @@ export type RecipeDraft = {
   suggested_image_url: string;
   image_credit: string;
   image_source_url: string;
+  /** Ingredients per step for cooking mode, from the AI; null if not assigned. */
+  step_ingredients: string[][] | null;
 };
 
 export const EMPTY_DRAFT: RecipeDraft = {
@@ -135,6 +139,7 @@ export const EMPTY_DRAFT: RecipeDraft = {
   suggested_image_url: "",
   image_credit: "",
   image_source_url: "",
+  step_ingredients: null,
 };
 
 export function recipeToDraft(r: Recipe): RecipeDraft {
@@ -158,6 +163,7 @@ export function recipeToDraft(r: Recipe): RecipeDraft {
     suggested_image_url: "",
     image_credit: r.image_credit ?? "",
     image_source_url: r.image_source_url ?? "",
+    step_ingredients: r.step_ingredients,
   };
 }
 
@@ -197,6 +203,20 @@ export function textToSteps(text: string): string[] {
     .split("\n")
     .map((l) => l.trim().replace(/^\d+[.)]\s+/, ""))
     .filter(Boolean);
+}
+
+/** The parts of a recipe the per-step ingredient lists depend on, for "has it changed?" checks. */
+export function stepBasis(ingredients: IngredientGroup[], steps: string[]): string {
+  return JSON.stringify({ i: ingredients.map((g) => [g.name ?? "", g.items]), s: steps });
+}
+
+/** Valid only if there is exactly one list of strings per step. */
+export function isStepIngredients(value: unknown, stepCount: number): value is string[][] {
+  return (
+    Array.isArray(value) &&
+    value.length === stepCount &&
+    value.every((l) => Array.isArray(l) && l.every((i) => typeof i === "string"))
+  );
 }
 
 /** "https://www.example.com/a/b" -> "example.com" */

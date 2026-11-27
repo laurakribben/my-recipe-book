@@ -223,6 +223,17 @@ td form { margin: 0; }
 .cook-step-label { color: var(--muted); font-size: 1rem; margin: 0 0 0.75rem; }
 .cook-text { font-size: clamp(1.35rem, 4.8vw, 2rem); line-height: 1.45; margin: 0 0 1.5rem; }
 .cook-done { text-align: center; padding-top: 2rem; }
+.cook-step-ingredients {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 8px 8px 0;
+  font-size: 1.15rem;
+}
+.cook-step-ingredients li { margin: 0.2rem 0; }
+.cook-assign { margin-top: 1rem; }
 .cook-done .row { justify-content: center; }
 
 .cook-nav {

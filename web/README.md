@@ -18,6 +18,9 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
   recipe website when the AI reads a link. Pictures are stored in the public-read storage bucket
   `recipe-images` under random addresses; only the server uploads and deletes them. The picture's
   source ("Bild: …") is shown under it; for website pictures it's filled in automatically.
+- Cooking mode shows under each step the ingredients (with amounts) it uses. The AI assigns them
+  while reading a recipe, again when ingredients or steps are changed on save, and for older
+  recipes via a button in cooking mode (editors only).
 - Each user can run 30 AI extractions per 24 hours (`AI_DAILY_LIMIT`), to keep costs predictable.
 
 ## Setup (once)
@@ -28,7 +31,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
 2. **SQL Editor** → New query → paste `supabase/migrations/0001_init.sql` → **Run**. Then the same
    with `supabase/migrations/0002_grants.sql` and `supabase/migrations/0003_images.sql` (recipe
    pictures: adds the `image_path` column and the `recipe-images` storage bucket) and
-   `supabase/migrations/0004_image_credit.sql` (picture source shown under the picture).
+   `supabase/migrations/0004_image_credit.sql` (picture source shown under the picture) and
+   `supabase/migrations/0005_step_ingredients.sql` (ingredients per step in cooking mode).
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address

@@ -8,7 +8,18 @@ import { extractRecipe, ExtractionError, type ExtractionInput } from "@/lib/extr
 import { fetchImage, fetchPage, FetchPageError, isLoginWalled } from "@/lib/fetch-page";
 import { deleteRecipeImages, storeRecipeImage } from "@/lib/image-storage";
 import { isImageType } from "@/lib/images";
-import { RecipeInput, SOURCE_TYPES, textToIngredients, textToSteps, textToTags, type RecipeDraft } from "@/lib/recipe";
+import {
+  isStepIngredients,
+  RecipeInput,
+  SOURCE_TYPES,
+  stepBasis,
+  textToIngredients,
+  textToSteps,
+  textToTags,
+  type IngredientGroup,
+  type RecipeDraft,
+} from "@/lib/recipe";
+import { assignStepIngredients } from "@/lib/step-ingredients";
 import { createClient } from "@/lib/supabase/server";
 
 // ---------------------------------------------------------------- AI extraction
@@ -148,6 +159,51 @@ async function resolveImage(formData: FormData, bookId: string, recipeId: string
   return { kind: "keep" };
 }
 
+/**
+ * The per-step ingredient lists for cooking mode. Reuses `reuse` when the ingredients and
+ * steps haven't changed since it was made (`reuseBasis`), otherwise asks the AI again.
+ * Returns null when it can't be assigned; cooking mode then simply shows no lists.
+ */
+async function stepIngredientsFor(
+  userId: string,
+  ingredients: IngredientGroup[],
+  steps: string[],
+  reuse: unknown,
+  reuseBasis: string | null,
+): Promise<string[][] | null> {
+  if (steps.length === 0) return [];
+  if (reuseBasis === stepBasis(ingredients, steps) && isStepIngredients(reuse, steps.length)) {
+    return reuse.map((list) => list.slice(0, 50).map((i) => i.slice(0, 300)));
+  }
+  if (ingredients.length === 0) return steps.map(() => []);
+
+  const supabase = await createClient();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from("ai_extractions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", since);
+  if ((count ?? 0) >= env.aiDailyLimit()) return null;
+
+  try {
+    const { lists, usage } = await assignStepIngredients(ingredients, steps);
+    await supabase.from("ai_extractions").insert({ user_id: userId, ...usage });
+    return lists;
+  } catch (error) {
+    console.error("Assigning ingredients to steps failed", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+function parseJson(value: FormDataEntryValue | null): unknown {
+  try {
+    return JSON.parse(String(value ?? "null"));
+  } catch {
+    return null;
+  }
+}
+
 /** Adds the picture path; without a picture there is no picture source either. */
 function withImage<T extends { image_credit: string | null; image_source_url: string | null }>(data: T, imagePath: string | null) {
   return imagePath
@@ -167,8 +223,16 @@ export async function createRecipe(bookId: string, _prev: SaveState, formData: F
 
   const supabase = await createClient();
   const imagePath = image.kind === "new" ? image.path : null;
+  const stepIngredients = await stepIngredientsFor(
+    access.user.id,
+    parsed.data.ingredients,
+    parsed.data.steps,
+    parseJson(formData.get("step_ingredients")),
+    String(formData.get("step_basis") ?? "") || null,
+  );
   const { error } = await supabase.from("recipes").insert({
     ...withImage(parsed.data, imagePath),
+    step_ingredients: stepIngredients,
     id,
     book_id: bookId,
     created_by: access.user.id,
@@ -191,7 +255,7 @@ export async function updateRecipe(recipeId: string, _prev: SaveState, formData:
   const supabase = await createClient();
   const { data: current } = await supabase
     .from("recipes")
-    .select("book_id, image_path")
+    .select("book_id, image_path, ingredients, steps, step_ingredients")
     .eq("id", recipeId)
     .maybeSingle();
   const access = current ? await getBookForUser(current.book_id) : null;
@@ -201,10 +265,18 @@ export async function updateRecipe(recipeId: string, _prev: SaveState, formData:
   if ("error" in image) return image;
   const imagePath = image.kind === "new" ? image.path : image.kind === "remove" ? null : current.image_path;
 
+  const stepIngredients = await stepIngredientsFor(
+    access.user.id,
+    parsed.data.ingredients,
+    parsed.data.steps,
+    current.step_ingredients,
+    stepBasis(current.ingredients, current.steps),
+  );
+
   // RLS also checks that only owners and editors of the recipe's book can update it.
   const { error } = await supabase
     .from("recipes")
-    .update(withImage(parsed.data, imagePath))
+    .update({ ...withImage(parsed.data, imagePath), step_ingredients: stepIngredients })
     .eq("id", recipeId);
   if (error) {
     if (image.kind === "new") await deleteRecipeImages([image.path]);
@@ -225,4 +297,27 @@ export async function deleteRecipe(recipeId: string, bookId: string) {
   await deleteRecipeImages((deleted ?? []).map((r) => r.image_path));
   revalidatePath(`/books/${bookId}`);
   redirect(`/books/${bookId}`);
+}
+
+export type AssignState = { error: string } | null;
+
+/** Cooking mode button for existing recipes: lets the AI assign ingredients to the steps. */
+export async function assignStepIngredientsAction(recipeId: string): Promise<AssignState> {
+  if (!isUuid(recipeId)) return { error: "Unbekanntes Rezept." };
+  const supabase = await createClient();
+  const { data: recipe } = await supabase
+    .from("recipes")
+    .select("book_id, ingredients, steps")
+    .eq("id", recipeId)
+    .maybeSingle();
+  const access = recipe ? await getBookForUser(recipe.book_id) : null;
+  if (!recipe || !access || !canEdit(access.role)) return { error: "Du darfst dieses Rezept nicht bearbeiten." };
+
+  const lists = await stepIngredientsFor(access.user.id, recipe.ingredients, recipe.steps, null, null);
+  if (!lists) return { error: "Das hat gerade nicht geklappt (KI nicht erreichbar oder Tageslimit erreicht)." };
+
+  const { error } = await supabase.from("recipes").update({ step_ingredients: lists }).eq("id", recipeId);
+  if (error) return { error: "Speichern hat nicht geklappt." };
+  revalidatePath(`/recipes/${recipeId}/cook`);
+  return null;
 }

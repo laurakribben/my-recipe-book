@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { findDurations, formatSeconds } from "@/lib/durations";
 import type { IngredientGroup } from "@/lib/recipe";
+import type { AssignState } from "@/app/recipes/actions";
 
 type Props = {
   recipeId: string;
@@ -12,6 +13,10 @@ type Props = {
   imageUrl: string | null;
   ingredients: IngredientGroup[];
   steps: string[];
+  /** Ingredients with amounts for each step, or null if not assigned yet. */
+  stepIngredients: string[][] | null;
+  /** Lets editors have the AI assign ingredients to steps; absent for everyone else. */
+  assign?: (prev: AssignState) => Promise<AssignState>;
 };
 
 type Timer = { id: string; label: string; stepNo: number; endsAt: number; done: boolean };
@@ -75,7 +80,7 @@ function playBeeps(ctx: AudioContext | null) {
 
 // ---------------------------------------------------------------- component
 
-function CookingModeClient({ recipeId, title, imageUrl, ingredients, steps }: Props) {
+function CookingModeClient({ recipeId, title, imageUrl, ingredients, steps, stepIngredients, assign }: Props) {
   const total = steps.length + 1; // position 0 = ingredients, then one position per step
   const [saved] = useState(() => loadSaved(recipeId));
   const [pos, setPos] = useState(() => Math.min(saved?.pos ?? 0, total - 1));
@@ -323,6 +328,14 @@ function CookingModeClient({ recipeId, title, imageUrl, ingredients, steps }: Pr
               Schritt {pos} von {steps.length}
             </p>
             <p className="cook-text">{step}</p>
+            {stepIngredients && stepIngredients[pos - 1]?.length > 0 && (
+              <ul className="cook-step-ingredients" aria-label="Zutaten für diesen Schritt">
+                {stepIngredients[pos - 1].map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            )}
+            {!stepIngredients && assign && ingredients.length > 0 && <AssignButton assign={assign} />}
             {durations.length > 0 && (
               <div className="row">
                 {durations.map((d) => (
@@ -394,5 +407,18 @@ function IngredientChecklist({
         </div>
       ))}
     </div>
+  );
+}
+
+function AssignButton({ assign }: { assign: (prev: AssignState) => Promise<AssignState> }) {
+  const [state, action, pending] = useActionState(assign, null);
+  return (
+    <form action={action} className="cook-assign">
+      <button type="submit" className="secondary" disabled={pending}>
+        {pending ? "KI ordnet zu…" : "Zutaten den Schritten zuordnen"}
+      </button>
+      <span className="hint">Zeigt dann unter jedem Schritt die benötigten Zutaten mit Mengen.</span>
+      {state?.error && <p className="notice error">{state.error}</p>}
+    </form>
   );
 }

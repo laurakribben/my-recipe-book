@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ingredientsToText, SOURCE_TYPE_LABELS, SOURCE_TYPES, type RecipeDraft } from "@/lib/recipe";
+import { ingredientsToText, SOURCE_TYPE_LABELS, SOURCE_TYPES, stepBasis, type RecipeDraft } from "@/lib/recipe";
 import { shrinkImage } from "@/lib/shrink-image";
 import type { SaveState } from "@/app/recipes/actions";
 
@@ -28,6 +28,10 @@ export function RecipeForm({ draft, action, submitLabel }: Props) {
       </label>
 
       <ImageField draft={draft} />
+
+      {/* Lets saving reuse the AI's per-step ingredient lists if ingredients and steps are unchanged. */}
+      <input type="hidden" name="step_basis" value={stepBasis(draft.ingredients, draft.steps)} />
+      <input type="hidden" name="step_ingredients" value={JSON.stringify(draft.step_ingredients)} />
 
       <label className="field">
         <span>Zutaten</span>
