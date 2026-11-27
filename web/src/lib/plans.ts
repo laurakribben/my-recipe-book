@@ -3,30 +3,16 @@ import { cache } from "react";
 import { isUuid } from "@/lib/books";
 import type { BookRole } from "@/lib/recipe";
 import { createClient, getUser } from "@/lib/supabase/server";
+import type { Meal } from "@/lib/week";
+
+// Dates, weeks and meals are plain helpers usable in the browser too; re-exported here.
+export * from "@/lib/week";
 
 /** week_start: first day of the week, 1 = Monday ... 7 = Sunday. */
 export type Plan = { id: string; name: string; owner_id: string; created_at: string; week_start: number };
 
 export type PlanIdea = { id: string; recipe_id: string | null; title: string; week: string; created_at: string };
 
-export const WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
-
-/** Rows of the week table, in order. */
-export const MEALS = [
-  { id: "morgens", label: "Morgens" },
-  { id: "mittags", label: "Mittags" },
-  { id: "abends", label: "Abends" },
-  { id: "snack", label: "Snack" },
-] as const;
-export type Meal = (typeof MEALS)[number]["id"];
-
-export function isMeal(value: unknown): value is Meal {
-  return MEALS.some((m) => m.id === value);
-}
-
-export function mealLabel(meal: string): string {
-  return MEALS.find((m) => m.id === meal)?.label ?? "Abends";
-}
 
 export type PlanEntry = {
   id: string;
@@ -89,44 +75,4 @@ export async function createPlan(userId: string, name: string): Promise<string> 
     throw new Error("Der Wochenplan konnte nicht angelegt werden.");
   }
   return id;
-}
-
-// ---------------------------------------------------------------- dates (YYYY-MM-DD, Europe/Berlin)
-
-export function today(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date());
-}
-
-export function isIsoDate(value: string | null | undefined): value is string {
-  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)));
-}
-
-export function addDays(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-/** First day of the week containing `date`, for weeks starting on `weekStart` (1 = Monday ... 7 = Sunday). */
-export function weekStartOf(date: string, weekStart = 1): string {
-  const jsDay = new Date(`${date}T00:00:00Z`).getUTCDay(); // 0 = Sunday
-  const isoDay = jsDay === 0 ? 7 : jsDay;
-  return addDays(date, -((isoDay - weekStart + 7) % 7));
-}
-
-export function weekDays(start: string): string[] {
-  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-}
-
-const dayFormat = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
-const shortFormat = new Intl.DateTimeFormat("de-DE", { day: "numeric", month: "short", timeZone: "UTC" });
-
-/** "Montag, 30. November" */
-export function formatDay(date: string): string {
-  return dayFormat.format(new Date(`${date}T00:00:00Z`));
-}
-
-/** "30. Nov. – 6. Dez." */
-export function formatWeek(start: string): string {
-  return `${shortFormat.format(new Date(`${start}T00:00:00Z`))} – ${shortFormat.format(new Date(`${addDays(start, 6)}T00:00:00Z`))}`;
 }

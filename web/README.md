@@ -28,7 +28,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
   recipe, an optional "Portionen" field makes the AI convert all amounts, steps included.
 - Wochenplan (`/plans`): each user gets a personal meal plan (a table of days × meals – Morgens,
   Mittags, Abends, Snack – on wide screens, a list on phones; recipes or free entries, servings
-  and a note per entry) that can be shared like a recipe book. "Einkaufsliste für diese
+  and a note per entry; with a mouse, entries, whole cells and noted recipes can be dragged onto
+  another day or meal) that can be shared like a recipe book. "Einkaufsliste für diese
   Woche" puts the ingredients of the week's recipes, scaled to the planned servings, on the plan's
   shared shopping list. Viewers of a plan can tick items off but change nothing else.
   The owner chooses the first day of the week. On a recipe page, "Merken für: Diese Woche /

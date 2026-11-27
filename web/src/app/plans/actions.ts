@@ -503,3 +503,63 @@ export async function setWeekStart(planId: string, formData: FormData) {
   revalidatePath(`/plans/${planId}`, "layout");
   redirect(settingsUrl(planId, "Wochenbeginn gespeichert."));
 }
+
+// ---------------------------------------------------------------- drag and drop in the week table
+
+/** Moves one entry to another day/meal. Returns false if it didn't work (the page then reloads). */
+export async function moveEntry(planId: string, entryId: string, day: string, meal: string): Promise<boolean> {
+  await requireEditor(planId);
+  if (!isUuid(entryId) || !isIsoDate(day) || !isMeal(meal)) return false;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("meal_plan_entries")
+    .update({ day, meal })
+    .eq("id", entryId)
+    .eq("plan_id", planId);
+  revalidatePath(`/plans/${planId}`);
+  return !error;
+}
+
+/** Moves everything in one cell to another cell (added to what's there). */
+export async function moveCell(planId: string, fromDay: string, fromMeal: string, toDay: string, toMeal: string): Promise<boolean> {
+  await requireEditor(planId);
+  if (!isIsoDate(fromDay) || !isIsoDate(toDay) || !isMeal(fromMeal) || !isMeal(toMeal)) return false;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("meal_plan_entries")
+    .update({ day: toDay, meal: toMeal })
+    .eq("plan_id", planId)
+    .eq("day", fromDay)
+    .eq("meal", fromMeal);
+  revalidatePath(`/plans/${planId}`);
+  return !error;
+}
+
+/** Drops a noted recipe ("Diese Woche"/"Nächste Woche") onto a cell: plans it and removes it from the list. */
+export async function planIdeaAt(planId: string, ideaId: string, day: string, meal: string): Promise<boolean> {
+  const { user } = await requireEditor(planId);
+  if (!isUuid(ideaId) || !isIsoDate(day) || !isMeal(meal)) return false;
+  const supabase = await createClient();
+  const { data: idea } = await supabase
+    .from("meal_plan_ideas")
+    .select("recipe_id, title")
+    .eq("id", ideaId)
+    .eq("plan_id", planId)
+    .maybeSingle();
+  if (!idea) return false;
+  const { error } = await supabase.from("meal_plan_entries").insert({
+    plan_id: planId,
+    day,
+    meal,
+    recipe_id: idea.recipe_id,
+    title: idea.title,
+    created_by: user.id,
+  });
+  if (error) {
+    console.error("Planning an idea by drag and drop failed", { code: error.code, message: error.message });
+    return false;
+  }
+  await supabase.from("meal_plan_ideas").delete().eq("id", ideaId);
+  revalidatePath(`/plans/${planId}`);
+  return true;
+}

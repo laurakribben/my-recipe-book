@@ -705,3 +705,13 @@ details.disclosure[open] > summary { margin-bottom: 0.75rem; }
 .plan-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
 .plan-dialog-head h2 { margin: 0; font-size: 1.15rem; }
 .today-meal { display: block; }
+
+/* ---------------------------------------------------------------- drag and drop (mouse) */
+
+@media (min-width: 1000px) and (hover: hover) {
+  .cell[draggable="true"], .cell-entries li[draggable="true"], .idea-list li.draggable { cursor: grab; }
+  .cell-entries li[draggable="true"]:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); border-radius: 6px; }
+}
+.cell.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.drag-hint { margin: 0.25rem 0 0; }
+@media (max-width: 999px), (hover: none) { .drag-hint { display: none; } }

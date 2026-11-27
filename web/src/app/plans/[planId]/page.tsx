@@ -19,6 +19,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { UndoableRemove } from "@/components/toast";
 import { AddEntryDialog } from "@/components/plan-dialogs";
+import { DraggableIdea } from "./draggable-idea";
 import { WeekTable } from "./week-table";
 import {
   addEntry,
@@ -133,7 +134,7 @@ export default async function PlanWeekPage(props: Props) {
             )}
             <ul className="plain-list">
               {items.map((idea) => (
-                <li key={idea.id}>
+                <DraggableIdea key={idea.id} id={idea.id} title={idea.title} recipeId={idea.recipe_id} enabled={editable}>
                   {idea.recipe_id ? <Link href={`/recipes/${idea.recipe_id}`}>{idea.title}</Link> : <span>{idea.title}</span>}
                   {editable && (
                     <details className="disclosure">
@@ -185,7 +186,7 @@ export default async function PlanWeekPage(props: Props) {
                       </div>
                     </details>
                   )}
-                </li>
+                </DraggableIdea>
               ))}
             </ul>
           </div>
@@ -245,6 +246,12 @@ export default async function PlanWeekPage(props: Props) {
         />
       )}
 
+      {editable && (
+        <p className="hint drag-hint">
+          Tipp: Rezepte, ganze Zellen und vorgemerkte Rezepte lassen sich mit der Maus auf einen anderen Tag oder eine
+          andere Mahlzeit ziehen.
+        </p>
+      )}
       <WeekTable planId={plan.id} days={days} todayDate={todayDate} entries={entries} editable={editable} />
     </>
   );
