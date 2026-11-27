@@ -1,5 +1,6 @@
-title: My Recipe Book
-description: Recipes collected from Instagram, websites, videos and photos.
+title: Mein Rezeptbuch
+description: Rezepte aus Instagram, Websites, Videos und Fotos.
+lang: de
 
 # GitHub Pages serves this repository at https://<user>.github.io/my-recipe-book/
 baseurl: "/my-recipe-book"

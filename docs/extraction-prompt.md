@@ -16,6 +16,7 @@ Rules:
 - Keep the creator's amounts and units exactly as given.
 - If something is missing (e.g. amounts are only spoken in the video), leave that field empty, set status to incomplete, and explain what is missing in "missing".
 - Write the steps as short, clear sentences in your own words.
+- Write everything in German (title, ingredients, steps, notes, tags, missing), even if the post is in English. Use German units (TL, EL, Tasse, Prise) and ingredient names, give °C with the original °F in brackets, and cm in brackets after inches.
 
 Reply with ONLY this block, filled in, and nothing else:
 

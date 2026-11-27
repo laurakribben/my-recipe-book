@@ -19,6 +19,12 @@ and GitHub Pages builds the website from it with Jekyll (no build step to run by
    recipe file.
 3. Write `_recipes/<short-name>.md` following `docs/recipe-template.md` exactly
    (front matter fields, ingredient groups, steps). Keep the creator's amounts and units.
+   **Write every recipe in German** (title, ingredients, steps, notes, tags, `missing`),
+   whatever the source language. Keep the creator's amounts; use German unit abbreviations
+   (TL, EL, Tasse, Prise) and German ingredient names. Give °C first with the original °F in
+   brackets, and add cm in brackets after inches. Name new files after the German title in
+   lowercase with hyphens and umlauts spelled out (ä→ae, ö→oe, ü→ue, ß→ss), e.g.
+   `gruener-spargelsalat.md`. Never rename existing files: their URLs may have been shared.
 4. Never guess amounts or steps. If something is missing (e.g. only spoken in the video),
    set `status: incomplete` and explain it in `missing`.
 5. Commit one recipe per commit, mentioning the issue number, push, then comment on the

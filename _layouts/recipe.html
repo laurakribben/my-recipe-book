@@ -5,21 +5,21 @@ layout: default
   <h1>{{ page.title }}</h1>
 
   {% if page.status == "incomplete" %}
-  <p class="warning"><strong>Incomplete:</strong> {{ page.missing }}</p>
+  <p class="warning"><strong>Unvollständig:</strong> {{ page.missing }}</p>
   {% endif %}
 
   <ul class="meta">
-    {% if page.servings %}<li>Serves {{ page.servings }}</li>{% endif %}
-    {% if page.prep_time %}<li>Prep {{ page.prep_time }}</li>{% endif %}
-    {% if page.cook_time %}<li>Cook {{ page.cook_time }}</li>{% endif %}
-    {% if page.total_time %}<li>Total {{ page.total_time }}</li>{% endif %}
+    {% if page.servings %}<li>{{ page.servings }} Portionen</li>{% endif %}
+    {% if page.prep_time %}<li>Vorbereitung {{ page.prep_time }}</li>{% endif %}
+    {% if page.cook_time %}<li>Back-/Kochzeit {{ page.cook_time }}</li>{% endif %}
+    {% if page.total_time %}<li>Gesamt {{ page.total_time }}</li>{% endif %}
   </ul>
 
   {% if page.tags.size > 0 %}
   <p class="tags">{% for tag in page.tags %}<span>{{ tag }}</span>{% endfor %}</p>
   {% endif %}
 
-  <h2>Ingredients</h2>
+  <h2>Zutaten</h2>
   {% for group in page.ingredients %}
     {% if group.name %}<h3>{{ group.name }}</h3>{% endif %}
     <ul>
@@ -27,22 +27,22 @@ layout: default
     </ul>
   {% endfor %}
 
-  <h2>Steps</h2>
+  <h2>Zubereitung</h2>
   {% if page.steps.size > 0 %}
   <ol>
     {% for step in page.steps %}<li>{{ step }}</li>{% endfor %}
   </ol>
   {% else %}
-  <p class="empty">No steps available yet. See the original post.</p>
+  <p class="empty">Noch keine Zubereitungsschritte vorhanden. Siehe Originalbeitrag.</p>
   {% endif %}
 
   {% if content != "" %}
-  <h2>Notes</h2>
+  <h2>Notizen</h2>
   {{ content }}
   {% endif %}
 
   <p class="source">
-    Source: <a href="{{ page.source_url }}">{{ page.source_author | default: page.source_url }}</a>
-    ({{ page.source_type }}) · added {{ page.added | date: "%-d %b %Y" }}
+    Quelle: <a href="{{ page.source_url }}">{{ page.source_author | default: page.source_url }}</a>
+    ({{ page.source_type }}) · hinzugefügt am {{ page.added | date: "%d.%m.%Y" }}
   </p>
 </article>

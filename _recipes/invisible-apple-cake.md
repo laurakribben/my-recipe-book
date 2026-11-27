@@ -1,42 +1,42 @@
 ---
-title: Invisible Apple Cake
+title: Unsichtbarer Apfelkuchen
 source_url: https://www.instagram.com/jillian.barreca/reel/DgFqT7sz0xA/
 source_type: instagram
 source_author: "@jillian.barreca"
 added: 2026-11-27
 issue: 1
 status: complete
-cook_time: 1 h 15 min
-tags: [cake, apple, baking, fall]
+cook_time: 1 Std. 15 Min.
+tags: [Kuchen, Apfel, Backen, Herbst]
 ingredients:
   - items:
-      - 80 g unsalted butter, plus more for greasing
-      - 120 ml whole milk
-      - 1 vanilla bean, scraped (or 1 tsp vanilla bean paste)
-      - 100 g 00 or all-purpose flour
-      - 1 tsp baking powder
-      - 1 organic lemon, zested
-      - ⅛ tsp freshly ground nutmeg
-      - ½ tsp kosher salt
-      - 4 eggs, room temperature
-      - 100 g granulated sugar
-      - 6–7 medium apples (Honeycrisp, Cosmic Crisp, Fuji or Pink Lady)
-      - Turbinado sugar, for sprinkling
+      - 80 g ungesalzene Butter, plus etwas zum Einfetten
+      - 120 ml Vollmilch
+      - 1 Vanilleschote, ausgekratzt (oder 1 TL Vanillepaste)
+      - 100 g Mehl (Type 00 oder Weizenmehl Type 405)
+      - 1 TL Backpulver
+      - 1 Bio-Zitrone, Schale abgerieben
+      - ⅛ TL frisch geriebene Muskatnuss
+      - ½ TL koscheres Salz (oder feines Meersalz)
+      - 4 Eier, zimmerwarm
+      - 100 g Zucker
+      - 6–7 mittelgroße Äpfel (Honeycrisp, Cosmic Crisp, Fuji oder Pink Lady)
+      - Rohrohrzucker zum Bestreuen
 steps:
-  - Heat the oven to 375 °F (190 °C). Butter a 9 × 5-inch loaf pan well and line it with a parchment sling that overhangs the long sides by about 2 inches.
-  - Warm the butter, milk, scraped vanilla seeds and the empty pod in a small pan until the butter melts. Let it cool a little.
-  - Whisk the flour, baking powder, lemon zest, nutmeg and salt in a small bowl.
-  - Beat the eggs and sugar in a stand mixer on medium-high for 1–2 minutes until pale and fluffy. Scrape down the bowl.
-  - On low speed, mix in half of the dry ingredients until just combined. Take out the vanilla pod, slowly pour in the warm milk mixture, then add the rest of the dry ingredients and mix until smooth.
-  - Peel, core and quarter the apples, then slice them very thin (about 1/16 inch / 1.5 mm) with a mandoline or sharp knife. Fold the slices into the batter until they are all coated.
-  - Spoon the apple batter into the pan about a cupful at a time, pressing the slices flat as you go. Tap the pan to release air bubbles and pour any leftover batter over the top.
-  - Sprinkle with turbinado sugar and bake for about 1 hour 15 minutes, until a tester slides through with no resistance. Optionally, broil briefly at the end to caramelise the top, watching closely so it doesn't burn.
-  - Run a knife around the edges and let the cake cool in the pan on a rack for 1 hour, so the apples' pectin sets and the cake slices cleanly.
-  - Lift the cake out and cool for another hour. Dust with powdered sugar or brush with melted apricot preserves, then slice with a serrated knife.
+  - Den Ofen auf 190 °C (375 °F) vorheizen. Eine Kastenform (9 × 5 Zoll, ca. 23 × 13 cm) gut einfetten und mit einem Streifen Backpapier auslegen, der an den langen Seiten etwa 5 cm übersteht.
+  - Butter, Milch, das ausgekratzte Vanillemark und die leere Schote in einem kleinen Topf erwärmen, bis die Butter geschmolzen ist. Etwas abkühlen lassen.
+  - Mehl, Backpulver, Zitronenschale, Muskatnuss und Salz in einer kleinen Schüssel verrühren.
+  - Eier und Zucker in der Küchenmaschine 1–2 Minuten auf mittelhoher Stufe hell und schaumig schlagen. Die Schüssel auskratzen.
+  - Auf niedriger Stufe die Hälfte der trockenen Zutaten kurz unterrühren. Die Vanilleschote herausnehmen, die warme Milchmischung langsam einlaufen lassen, dann die restlichen trockenen Zutaten zugeben und glatt rühren.
+  - Die Äpfel schälen, entkernen und vierteln, dann mit einem Gemüsehobel oder scharfen Messer sehr dünn schneiden (ca. 1,5 mm). Die Scheiben unter den Teig heben, bis alle bedeckt sind.
+  - Den Apfelteig tassenweise in die Form geben und die Scheiben dabei flach andrücken. Die Form aufklopfen, damit Luftblasen entweichen, und übrigen Teig darübergießen.
+  - Mit Rohrohrzucker bestreuen und etwa 1 Stunde 15 Minuten backen, bis ein Holzstäbchen ohne Widerstand hindurchgleitet. Nach Belieben am Ende kurz unter den Grill stellen, damit die Oberfläche karamellisiert; dabei gut aufpassen, dass nichts verbrennt.
+  - Mit einem Messer am Rand entlangfahren und den Kuchen 1 Stunde in der Form auf einem Gitter abkühlen lassen. So kann das Pektin der Äpfel fest werden und der Kuchen lässt sich sauber schneiden.
+  - Den Kuchen herausheben und eine weitere Stunde abkühlen lassen. Mit Puderzucker bestäuben oder mit geschmolzener Aprikosenkonfitüre bestreichen und mit einem Sägemesser aufschneiden.
 ---
-The creator calls it an all-time favourite fall bake. Instead of the vanilla bean you can use
-1 tsp vanilla bean paste.
+Laut der Autorin ihr liebster Herbstkuchen aller Zeiten. Statt der Vanilleschote kann man
+1 TL Vanillepaste nehmen.
 
-Keeps about 5 days in an airtight container in the fridge; let it come to room temperature before serving.
+Hält sich luftdicht verpackt im Kühlschrank etwa 5 Tage. Vor dem Servieren auf Zimmertemperatur kommen lassen.
 
-Full method from her newsletter: [Invisible Apple Cake](https://jillianbarreca.substack.com/p/invisible-apple-cake).
+Vollständige Anleitung in ihrem Newsletter (Englisch): [Invisible Apple Cake](https://jillianbarreca.substack.com/p/invisible-apple-cake).
