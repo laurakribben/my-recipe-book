@@ -24,7 +24,7 @@ export default async function NewRecipeShortcut() {
   if (books.length === 1) redirect(`/books/${books[0].id}/new`);
 
   return (
-    <>
+    <div className="narrow">
       <h1>Rezept hinzufügen</h1>
       {books.length === 0 ? (
         <div className="card">
@@ -45,6 +45,6 @@ export default async function NewRecipeShortcut() {
           </ul>
         </>
       )}
-    </>
+    </div>
   );
 }

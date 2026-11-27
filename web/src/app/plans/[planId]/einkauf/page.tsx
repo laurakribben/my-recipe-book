@@ -35,7 +35,7 @@ export default async function ShoppingPage(props: Props) {
   const items = (data ?? []) as ShoppingItem[];
 
   return (
-    <>
+    <div className="narrow">
       <p className="small">
         <Link href={`/plans/${plan.id}`}>← {plan.name}</Link>
       </p>
@@ -80,6 +80,6 @@ export default async function ShoppingPage(props: Props) {
         Rezepte kommen über „Einkaufsliste für diese Woche“ im Wochenplan auf die Liste. Die Liste ist mit allen
         Mitgliedern des Plans geteilt.
       </p>
-    </>
+    </div>
   );
 }

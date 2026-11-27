@@ -22,7 +22,7 @@ export default async function NewRecipePage(props: {
   if (!access || !canEdit(access.role)) notFound();
 
   return (
-    <>
+    <div className="narrow">
       <p className="small">
         <Link href={`/books/${bookId}`}>← {access.book.name}</Link>
       </p>
@@ -32,6 +32,6 @@ export default async function NewRecipePage(props: {
         save={createRecipe.bind(null, bookId)}
         startMode={START_MODES[quelle as keyof typeof START_MODES] ?? "link"}
       />
-    </>
+    </div>
   );
 }

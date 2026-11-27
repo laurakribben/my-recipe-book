@@ -38,7 +38,7 @@ export default async function PlanSettingsPage(props: Props) {
     : { data: [] };
 
   return (
-    <>
+    <div className="narrow">
       <p className="small">
         <Link href={`/plans/${plan.id}`}>← {plan.name}</Link>
       </p>
@@ -161,6 +161,6 @@ export default async function PlanSettingsPage(props: Props) {
           <ConfirmButton label="Plan verlassen" question="Plan wirklich verlassen?" confirmLabel="Ja, verlassen" />
         </form>
       )}
-    </>
+    </div>
   );
 }

@@ -38,7 +38,7 @@ export default async function BookSettingsPage(props: Props) {
     : { data: [] };
 
   return (
-    <>
+    <div className="narrow">
       <p className="small">
         <Link href={`/books/${book.id}`}>← {book.name}</Link>
       </p>
@@ -158,6 +158,6 @@ export default async function BookSettingsPage(props: Props) {
           <ConfirmButton label="Buch verlassen" question="Buch wirklich verlassen?" confirmLabel="Ja, verlassen" />
         </form>
       )}
-    </>
+    </div>
   );
 }

@@ -24,7 +24,7 @@ export default async function EditRecipePage(props: { params: Promise<{ recipeId
   if (!access || !canEdit(access.role)) notFound();
 
   return (
-    <>
+    <div className="narrow">
       <p className="small">
         <Link href={`/recipes/${recipe.id}`}>← {recipe.title}</Link>
       </p>
@@ -42,6 +42,6 @@ export default async function EditRecipePage(props: { params: Promise<{ recipeId
       <form action={deleteRecipe.bind(null, recipe.id, recipe.book_id)}>
         <ConfirmButton label="Rezept löschen" question="Rezept wirklich löschen?" confirmLabel="Ja, löschen" />
       </form>
-    </>
+    </div>
   );
 }
