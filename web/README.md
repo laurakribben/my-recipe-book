@@ -21,6 +21,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
 - Cooking mode shows under each step the ingredients (with amounts) it uses. The AI assigns them
   while reading a recipe, again when ingredients or steps are changed on save, and for older
   recipes via a button in cooking mode (editors only).
+- The edit view has "Fehlendes mit KI ergänzen": it lists what a recipe lacks (picture, ingredients
+  per step) and fills it in. New checks are added in `src/lib/recipe-completion.ts`.
 - Each user can run 30 AI extractions per 24 hours (`AI_DAILY_LIMIT`), to keep costs predictable.
 
 ## Setup (once)

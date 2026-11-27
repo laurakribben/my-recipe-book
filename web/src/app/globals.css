@@ -318,3 +318,9 @@ td form { margin: 0; }
   margin-bottom: 0.5rem;
   background: var(--line);
 }
+
+/* ---------------------------------------------------------------- fill in missing */
+
+.completion-list { list-style: none; padding: 0; margin: 0 0 1rem; }
+.completion-list li { margin: 0.3rem 0; }
+.completion-list li > span:first-child { display: inline-block; width: 1.2rem; color: var(--accent); }

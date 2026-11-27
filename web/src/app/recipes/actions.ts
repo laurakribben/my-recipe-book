@@ -17,8 +17,10 @@ import {
   textToSteps,
   textToTags,
   type IngredientGroup,
+  type Recipe,
   type RecipeDraft,
 } from "@/lib/recipe";
+import { COMPLETERS, CompletionError } from "@/lib/recipe-completion";
 import { assignStepIngredients } from "@/lib/step-ingredients";
 import { createClient } from "@/lib/supabase/server";
 
@@ -320,4 +322,74 @@ export async function assignStepIngredientsAction(recipeId: string): Promise<Ass
   if (error) return { error: "Speichern hat nicht geklappt." };
   revalidatePath(`/recipes/${recipeId}/cook`);
   return null;
+}
+
+// ---------------------------------------------------------------- fill in what's missing
+
+export type CompleteState = { done: string[]; failed: string[] } | { error: string } | null;
+
+/**
+ * "Fehlendes ergänzen" in the edit view: fills in what the recipe is missing (see
+ * lib/recipe-completion.ts). With `redo` set to a check's id, runs that check even if
+ * the recipe already has it (e.g. to reassign the ingredients per step).
+ */
+export async function completeRecipeAction(recipeId: string, _prev: CompleteState, formData: FormData): Promise<CompleteState> {
+  if (!isUuid(recipeId)) return { error: "Unbekanntes Rezept." };
+  const supabase = await createClient();
+  const { data } = await supabase.from("recipes").select("*").eq("id", recipeId).maybeSingle();
+  const recipe = data as Recipe | null;
+  const access = recipe ? await getBookForUser(recipe.book_id) : null;
+  if (!recipe || !access || !canEdit(access.role)) return { error: "Du darfst dieses Rezept nicht bearbeiten." };
+
+  const redo = String(formData.get("redo") ?? "");
+  const todo = COMPLETERS.filter((c) => (c.id === redo || c.isMissing(recipe)) && !c.blockedReason(recipe));
+  if (todo.length === 0) return { done: [], failed: [] };
+
+  let aiLeft = env.aiDailyLimit();
+  if (todo.some((c) => c.usesAi)) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count } = await supabase
+      .from("ai_extractions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", access.user.id)
+      .gte("created_at", since);
+    aiLeft -= count ?? 0;
+  }
+
+  const done: string[] = [];
+  const failed: string[] = [];
+  let update: Partial<Recipe> = {};
+  for (const c of todo) {
+    if (c.usesAi && aiLeft <= 0) {
+      failed.push(`${c.label}: Tageslimit für KI erreicht`);
+      continue;
+    }
+    try {
+      const result = await c.run(recipe);
+      update = { ...update, ...result.update };
+      if (result.usage) {
+        aiLeft--;
+        await supabase.from("ai_extractions").insert({ user_id: access.user.id, ...result.usage });
+      }
+      done.push(c.label);
+    } catch (error) {
+      console.error(`Completing "${c.id}" failed`, error instanceof Error ? error.message : error);
+      const userMessage =
+        error instanceof FetchPageError || error instanceof ExtractionError || error instanceof CompletionError;
+      failed.push(userMessage ? `${c.label}: ${error.message}` : c.label);
+    }
+  }
+
+  if (Object.keys(update).length > 0) {
+    const { error } = await supabase.from("recipes").update(update).eq("id", recipeId);
+    if (error) {
+      if (update.image_path) await deleteRecipeImages([update.image_path]);
+      return { error: "Speichern hat nicht geklappt." };
+    }
+    if (update.image_path && recipe.image_path) await deleteRecipeImages([recipe.image_path]);
+  }
+
+  revalidatePath(`/recipes/${recipeId}`, "layout");
+  revalidatePath(`/books/${recipe.book_id}`);
+  return { done, failed };
 }

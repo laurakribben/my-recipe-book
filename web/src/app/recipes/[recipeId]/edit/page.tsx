@@ -5,7 +5,9 @@ import { RecipeForm } from "@/components/recipe-form";
 import { canEdit, getBookForUser, isUuid } from "@/lib/books";
 import { recipeToDraft, type Recipe } from "@/lib/recipe";
 import { createClient } from "@/lib/supabase/server";
-import { deleteRecipe, updateRecipe } from "../../actions";
+import { completionStatus } from "@/lib/recipe-completion";
+import { completeRecipeAction, deleteRecipe, updateRecipe } from "../../actions";
+import { CompletionPanel } from "./completion-panel";
 
 export const metadata: Metadata = { title: "Rezept bearbeiten" };
 
@@ -26,7 +28,14 @@ export default async function EditRecipePage(props: { params: Promise<{ recipeId
         <Link href={`/recipes/${recipe.id}`}>← {recipe.title}</Link>
       </p>
       <h1>Rezept bearbeiten</h1>
-      <RecipeForm draft={recipeToDraft(recipe)} action={updateRecipe.bind(null, recipe.id)} submitLabel="Speichern" />
+      <CompletionPanel items={completionStatus(recipe)} complete={completeRecipeAction.bind(null, recipe.id)} />
+      {/* key: start fresh with the saved values after "Fehlendes ergänzen" changed the recipe */}
+      <RecipeForm
+        key={recipe.updated_at}
+        draft={recipeToDraft(recipe)}
+        action={updateRecipe.bind(null, recipe.id)}
+        submitLabel="Speichern"
+      />
 
       <h2>Rezept löschen</h2>
       <form action={deleteRecipe.bind(null, recipe.id, recipe.book_id)}>
