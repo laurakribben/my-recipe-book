@@ -76,15 +76,15 @@ export function ServingsControl({
 
   return (
     <div className="servings">
-      <button type="button" className="secondary" onClick={() => minus && onChange(minus)} disabled={!minus} aria-label="Weniger">
+      <button type="button" className="secondary icon-button" onClick={() => minus && onChange(minus)} disabled={!minus} aria-label="Weniger">
         −
       </button>
       <span aria-live="polite">{label}</span>
-      <button type="button" className="secondary" onClick={() => plus && onChange(plus)} disabled={!plus} aria-label="Mehr">
+      <button type="button" className="secondary icon-button" onClick={() => plus && onChange(plus)} disabled={!plus} aria-label="Mehr">
         +
       </button>
       {factor !== 1 && (
-        <button type="button" className="link-button" onClick={() => onChange(1)}>
+        <button type="button" className="secondary btn-small" onClick={() => onChange(1)}>
           Original
         </button>
       )}

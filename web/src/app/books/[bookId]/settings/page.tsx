@@ -89,7 +89,7 @@ export default async function BookSettingsPage(props: Props) {
                           <option value="viewer">{ROLE_LABELS.viewer}</option>
                           <option value="editor">{ROLE_LABELS.editor}</option>
                         </select>
-                        <button type="submit" className="link-button">
+                        <button type="submit" className="secondary btn-small">
                           Ändern
                         </button>
                       </form>
@@ -100,7 +100,7 @@ export default async function BookSettingsPage(props: Props) {
                   <td>
                     {editable && (
                       <form action={removeMember.bind(null, book.id, m.user_id)}>
-                        <button type="submit" className="link-button">
+                        <button type="submit" className="danger btn-small">
                           Entfernen
                         </button>
                       </form>
@@ -117,7 +117,7 @@ export default async function BookSettingsPage(props: Props) {
                 <td>{ROLE_LABELS[i.role as BookRole]}</td>
                 <td>
                   <form action={withdrawInvite.bind(null, book.id, i.id)}>
-                    <button type="submit" className="link-button">
+                    <button type="submit" className="danger btn-small">
                       Zurückziehen
                     </button>
                   </form>

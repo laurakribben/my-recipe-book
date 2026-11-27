@@ -34,13 +34,15 @@ export default async function BookPage(props: Props) {
   return (
     <>
       <h1>{book.name}</h1>
-      <div className="row">
+      <div className="toolbar">
         {canEdit(role) && (
           <Link href={`/books/${book.id}/new`} className="button">
             Rezept hinzufügen
           </Link>
         )}
-        <Link href={`/books/${book.id}/settings`}>{role === "owner" ? "Teilen & Einstellungen" : "Mitglieder"}</Link>
+        <Link href={`/books/${book.id}/settings`} className="button secondary">
+          {role === "owner" ? "Teilen & Einstellungen" : "Mitglieder"}
+        </Link>
       </div>
 
       <form className="row" style={{ marginTop: "1.5rem" }}>

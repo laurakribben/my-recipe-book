@@ -100,11 +100,13 @@ export default async function PlanWeekPage(props: Props) {
     <>
       <div className="row spread">
         <h1 style={{ marginBottom: 0 }}>{plan.name}</h1>
-        <div className="row small">
+        <div className="toolbar">
           <Link href={`/plans/${plan.id}/einkauf`} className="button">
             Einkaufsliste
           </Link>
-          <Link href={`/plans/${plan.id}/settings`}>{role === "owner" ? "Teilen" : "Mitglieder"}</Link>
+          <Link href={`/plans/${plan.id}/settings`} className="button secondary">
+            {role === "owner" ? "Teilen & Einstellungen" : "Mitglieder"}
+          </Link>
         </div>
       </div>
       {plans.length > 1 && (
@@ -135,8 +137,8 @@ export default async function PlanWeekPage(props: Props) {
                 <li key={idea.id}>
                   {idea.recipe_id ? <Link href={`/recipes/${idea.recipe_id}`}>{idea.title}</Link> : <span>{idea.title}</span>}
                   {editable && (
-                    <details className="entry-edit">
-                      <summary>Einplanen …</summary>
+                    <details className="disclosure">
+                      <summary>Einplanen</summary>
                       <form action={planIdea.bind(null, plan.id, idea.id)} className="grid-2">
                         <label className="field">
                           <span>Tag</span>
@@ -162,12 +164,12 @@ export default async function PlanWeekPage(props: Props) {
                       </form>
                       <div className="row small">
                         <form action={moveIdea.bind(null, plan.id, idea.id, list === "this" ? "next" : "this")}>
-                          <button type="submit" className="link-button">
+                          <button type="submit" className="secondary btn-small">
                             {list === "this" ? "→ Nächste Woche" : "← Diese Woche"}
                           </button>
                         </form>
                         <form action={deleteIdea.bind(null, plan.id, idea.id)}>
-                          <button type="submit" className="link-button">
+                          <button type="submit" className="danger btn-small">
                             Entfernen
                           </button>
                         </form>
@@ -182,7 +184,11 @@ export default async function PlanWeekPage(props: Props) {
       </section>
 
       <nav className="week-nav" aria-label="Woche">
-        <Link href={`/plans/${plan.id}?woche=${addDays(weekStart, -7)}`} aria-label="Vorherige Woche">
+        <Link
+          href={`/plans/${plan.id}?woche=${addDays(weekStart, -7)}`}
+          aria-label="Vorherige Woche"
+          className="button secondary icon-button"
+        >
           ←
         </Link>
         <span>
@@ -194,7 +200,11 @@ export default async function PlanWeekPage(props: Props) {
             </>
           )}
         </span>
-        <Link href={`/plans/${plan.id}?woche=${addDays(weekStart, 7)}`} aria-label="Nächste Woche">
+        <Link
+          href={`/plans/${plan.id}?woche=${addDays(weekStart, 7)}`}
+          aria-label="Nächste Woche"
+          className="button secondary icon-button"
+        >
           →
         </Link>
       </nav>
@@ -228,7 +238,7 @@ export default async function PlanWeekPage(props: Props) {
                     {e.servings && <span className="badge">für {formatServings(e.servings)}</span>}
                     {e.note && <p className="entry-note">{e.note}</p>}
                     {editable && (
-                      <details className="entry-edit">
+                      <details className="disclosure">
                         <summary>Ändern</summary>
                         <form action={updateEntry.bind(null, plan.id, e.id)} className="grid-2">
                           <label className="field">
@@ -247,8 +257,8 @@ export default async function PlanWeekPage(props: Props) {
                             <button type="submit">Speichern</button>
                           </div>
                         </form>
-                        <form action={deleteEntry.bind(null, plan.id, e.id, e.day)}>
-                          <button type="submit" className="link-button">
+                        <form action={deleteEntry.bind(null, plan.id, e.id, e.day)} style={{ marginTop: "0.5rem" }}>
+                          <button type="submit" className="danger btn-small">
                             Entfernen
                           </button>
                         </form>
@@ -258,8 +268,8 @@ export default async function PlanWeekPage(props: Props) {
                 ))}
               </ul>
               {editable && (
-                <details className="entry-add">
-                  <summary>+ Gericht</summary>
+                <details className="disclosure">
+                  <summary>Gericht hinzufügen</summary>
                   <form action={addEntry.bind(null, plan.id)}>
                     <input type="hidden" name="day" value={day} />
                     <label className="field">

@@ -20,20 +20,20 @@ export function AddToPlan({ recipeId, plans, defaultDay, defaultServings }: Prop
   };
   return (
     <>
-      <div className="row small note-buttons">
+      <div className="toolbar note-buttons">
         <span className="muted">Merken für:</span>
         <form action={note("this")}>
-          <button type="submit" className="secondary">
+          <button type="submit" className="secondary btn-small">
             Diese Woche
           </button>
         </form>
         <form action={note("next")}>
-          <button type="submit" className="secondary">
+          <button type="submit" className="secondary btn-small">
             Nächste Woche
           </button>
         </form>
       </div>
-      <details className="add-to-plan">
+      <details className="disclosure">
         <summary>Für einen bestimmten Tag einplanen</summary>
         <form action={async (formData: FormData) => {
           "use server";

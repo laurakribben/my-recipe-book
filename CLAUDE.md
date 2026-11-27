@@ -8,6 +8,13 @@ database (`web/supabase/migrations/`), so every new table needs RLS policies. Ne
 from older versions: read `web/AGENTS.md` before changing app code. Check changes with
 `npm run typecheck && npm run lint && npm run build` in `web/`.
 
+UI conventions (styles in `web/src/app/globals.css`): every clickable element is one of
+primary button (`button` / `.button`, the main action), `.secondary` (other actions),
+`.danger` (removing/deleting) or a text link (only for going to another page). Use
+`.btn-small` for actions inside lists, `.icon-button` for symbol-only buttons (with an
+aria-label), `details.disclosure` for expandable forms, `.toolbar` for a page's action row.
+Labels (`.badge`, tags) are never clickable. Note: `.small` is a text size, not a button size.
+
 The extraction prompt in `web/src/lib/extract.ts` follows the same recipe rules as below
 (German, never guess, keep amounts); keep the two in sync.
 

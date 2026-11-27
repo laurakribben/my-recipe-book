@@ -42,7 +42,7 @@ export function NewRecipe({ extract, save }: Props) {
         </p>
         <RecipeForm draft={draft} action={save} submitLabel="Speichern" />
         <p>
-          <button type="button" className="link-button" onClick={() => setDraft(null)}>
+          <button type="button" className="secondary btn-small" onClick={() => setDraft(null)}>
             Verwerfen und neu beginnen
           </button>
         </p>

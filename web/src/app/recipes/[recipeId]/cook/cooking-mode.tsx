@@ -286,11 +286,11 @@ function CookingModeClient({
               </span>
               <button
                 type="button"
-                className="link-button"
+                className={t.done ? "icon-button" : "secondary icon-button"}
                 onClick={() => setTimers((list) => list.filter((x) => x.id !== t.id))}
                 aria-label={t.done ? `Timer von Schritt ${t.stepNo} ausschalten` : `Timer von Schritt ${t.stepNo} abbrechen`}
               >
-                {t.done ? "OK" : "✕"}
+                {t.done ? "✓" : "✕"}
               </button>
             </div>
           ))}
@@ -310,6 +310,9 @@ function CookingModeClient({
             />
           ))}
         </nav>
+      )}
+      {!finished && total > 2 && pos === 0 && (
+        <p className="cook-progress-hint">Tippe auf einen Abschnitt der Leiste, um zu einem Schritt zu springen.</p>
       )}
 
       <main className="cook-main" aria-live="polite">

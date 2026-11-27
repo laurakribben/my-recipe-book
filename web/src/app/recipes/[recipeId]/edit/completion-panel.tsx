@@ -45,7 +45,7 @@ export function CompletionPanel({ items, complete }: Props) {
           {pending ? "Wird ergänzt…" : runnable.length === 0 ? "Nichts zu ergänzen" : "Fehlendes ergänzen"}
         </button>
         {stepsAssigned && (
-          <button type="submit" name="redo" value="step_ingredients" className="link-button" disabled={pending}>
+          <button type="submit" name="redo" value="step_ingredients" className="secondary btn-small" disabled={pending}>
             Zutaten pro Schritt neu zuordnen
           </button>
         )}

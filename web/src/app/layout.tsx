@@ -28,7 +28,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {user ? (
               <form action="/auth/signout" method="post">
                 <span className="muted user-email">{user.email}</span>
-                <button type="submit" className="link-button">
+                <button type="submit" className="nav-button">
                   Abmelden
                 </button>
               </form>

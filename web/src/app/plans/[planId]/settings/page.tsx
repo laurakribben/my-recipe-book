@@ -90,7 +90,7 @@ export default async function PlanSettingsPage(props: Props) {
                           <option value="viewer">{ROLE_LABELS.viewer}</option>
                           <option value="editor">{ROLE_LABELS.editor}</option>
                         </select>
-                        <button type="submit" className="link-button">
+                        <button type="submit" className="secondary btn-small">
                           Ändern
                         </button>
                       </form>
@@ -101,7 +101,7 @@ export default async function PlanSettingsPage(props: Props) {
                   <td>
                     {editable && (
                       <form action={removePlanMember.bind(null, plan.id, m.user_id)}>
-                        <button type="submit" className="link-button">
+                        <button type="submit" className="danger btn-small">
                           Entfernen
                         </button>
                       </form>
@@ -118,7 +118,7 @@ export default async function PlanSettingsPage(props: Props) {
                 <td>{ROLE_LABELS[i.role as BookRole]}</td>
                 <td>
                   <form action={withdrawPlanInvite.bind(null, plan.id, i.id)}>
-                    <button type="submit" className="link-button">
+                    <button type="submit" className="danger btn-small">
                       Zurückziehen
                     </button>
                   </form>

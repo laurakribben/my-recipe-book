@@ -48,7 +48,7 @@ export function ShoppingList({ items, editable, setChecked, remove }: Props) {
       {editable && (
         <button
           type="button"
-          className="link-button"
+          className="danger icon-button"
           aria-label={`${item.text} löschen`}
           onClick={() =>
             startTransition(async () => {

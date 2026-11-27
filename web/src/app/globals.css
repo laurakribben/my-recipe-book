@@ -78,12 +78,13 @@ h3 { font-size: 1rem; margin-bottom: 0.25rem; }
 .list-tags { display: block; color: var(--muted); font-size: 0.9rem; }
 ol li, ul li { margin-bottom: 0.3rem; }
 
+/* Labels are information, not buttons: soft fill, no border. */
 .badge, .tags span {
   display: inline-block;
   margin: 0 0.4rem 0.2rem 0;
-  padding: 0 0.5rem;
-  border: 1px solid var(--line);
+  padding: 0.05rem 0.55rem;
   border-radius: 1rem;
+  background: color-mix(in srgb, var(--muted) 14%, var(--bg));
   font-size: 0.8rem;
   color: var(--muted);
   vertical-align: middle;
@@ -129,22 +130,67 @@ input[type="text"], input[type="email"], input[type="url"], input[type="search"]
 textarea { min-height: 8rem; resize: vertical; line-height: 1.5; }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0 1rem; }
 
-button, .button {
-  display: inline-block;
-  padding: 0.55rem 1.1rem;
+/* ---- Interactive elements: four kinds, one look each.
+   Primary (filled) = the main action · .secondary (outline) = other actions ·
+   .danger (red outline) = removing/deleting · text links = going to another page.
+   .btn-small = compact size for actions inside lists · .icon-button = round, symbol only. */
+button, .button, details.disclosure > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.1rem;
   border: 1px solid var(--accent);
   border-radius: 6px;
   background: var(--accent);
   color: var(--accent-text);
   font: inherit;
   font-size: 1rem;
+  line-height: 1.2;
   text-decoration: none;
   cursor: pointer;
 }
-button:disabled { opacity: 0.6; cursor: wait; }
-.secondary { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+.secondary, details.disclosure > summary { background: transparent; color: var(--accent); }
 .danger { background: transparent; color: var(--error); border-color: var(--error); }
-.link-button { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; font-size: 0.95rem; }
+button.secondary:hover:not(:disabled), .button.secondary:hover, details.disclosure > summary:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+button.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--error) 10%, transparent); }
+.btn-small, details.disclosure > summary { min-height: 2.25rem; padding: 0.3rem 0.8rem; font-size: 0.9rem; }
+
+.icon-button {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.25rem;
+  flex: none;
+}
+
+/* Expandable sections ("+ Gericht", "Ändern" …) look like small secondary buttons with an arrow. */
+details.disclosure > summary { list-style: none; }
+details.disclosure > summary::-webkit-details-marker { display: none; }
+details.disclosure > summary::before { content: "▸"; font-size: 0.8em; }
+details.disclosure[open] > summary::before { content: "▾"; }
+
+/* "Abmelden" sits in the menu and looks like the menu links. */
+.nav-button {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.75rem 0; }
+.toolbar form { margin: 0; }
+
+/* Visible keyboard focus everywhere. */
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; }
 
 .tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
 .tabs button { background: transparent; color: var(--accent); }
@@ -181,7 +227,7 @@ td form { margin: 0; }
 .cook-title { display: flex; flex-direction: column; min-width: 0; }
 .cook-title > span:first-child { font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cook-wake { color: var(--muted); }
-.cook-top .button, .cook-top button { padding: 0.35rem 0.8rem; font-size: 0.95rem; }
+
 
 .cook-timers { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem 16px; border-bottom: 1px solid var(--line); }
 .cook-timer {
@@ -195,23 +241,35 @@ td form { margin: 0; }
   font-size: 1.1rem;
 }
 .cook-timer.done { background: var(--accent); color: var(--accent-text); border-color: var(--accent); animation: cook-blink 1s steps(2) infinite; }
-.cook-timer.done .link-button { color: var(--accent-text); font-weight: bold; }
+.cook-timer .icon-button { width: 2.25rem; min-width: 2.25rem; height: 2.25rem; min-height: 2.25rem; font-size: 1rem; }
+.cook-timer.done .icon-button { background: var(--accent-text); color: var(--accent); border-color: var(--accent-text); font-weight: bold; }
 @keyframes cook-blink { 50% { opacity: 0.6; } }
 @media (prefers-reduced-motion: reduce) { .cook-timer.done { animation: none; } }
 
-.cook-progress { display: flex; gap: 4px; padding: 0.75rem 16px 0; }
+.cook-progress { display: flex; gap: 4px; padding: 0.5rem 16px 0; }
+/* Each segment is tappable: a 28 px tall target around a 10 px bar (drawn by ::before). */
 .cook-progress button {
+  position: relative;
   flex: 1;
-  height: 10px;
   min-width: 0;
+  min-height: 0;
+  height: 28px;
   padding: 0;
   border: none;
-  border-radius: 5px;
-  background: var(--line);
+  background: transparent;
   cursor: pointer;
 }
-.cook-progress button.seen { background: color-mix(in srgb, var(--accent) 45%, var(--line)); }
-.cook-progress button.current { background: var(--accent); }
+.cook-progress button::before {
+  content: "";
+  position: absolute;
+  inset: 9px 0;
+  border-radius: 5px;
+  background: var(--line);
+}
+.cook-progress button:hover::before { background: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+.cook-progress button.seen::before { background: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.cook-progress button.current::before { background: var(--accent); }
+.cook-progress-hint { margin: 0.15rem 16px 0; font-size: 0.8rem; color: var(--muted); }
 
 .cook-main {
   flex: 1;
@@ -329,7 +387,7 @@ td form { margin: 0; }
 /* ---------------------------------------------------------------- servings */
 
 .servings { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0.5rem 0 0.75rem; }
-.servings button.secondary { width: 2.6rem; height: 2.6rem; padding: 0; font-size: 1.3rem; line-height: 1; border-radius: 50%; }
+
 .servings > span { min-width: 7.5rem; text-align: center; font-variant-numeric: tabular-nums; }
 
 /* ---------------------------------------------------------------- meal plan */
@@ -344,21 +402,20 @@ td form { margin: 0; }
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
-.week-nav > a { font-size: 1.4rem; text-decoration: none; padding: 0 0.5rem; }
+
 .week-nav > span { text-align: center; }
 
 .week .day { padding: 0.25rem 0 0.75rem; border-bottom: 1px solid var(--line); scroll-margin-top: 1rem; }
 .week .day h2 { font-size: 1.05rem; margin: 1rem 0 0.25rem; }
 .week .day.today h2 { color: var(--accent); }
-.week .day .badge { margin-left: 0.5rem; }
+.week .day .badge, .week .plain-list .badge { margin-left: 0.5rem; }
 .week .plain-list { margin: 0; }
 .week .plain-list > li { border-bottom: none; padding: 0.35rem 0; }
 
-.entry-edit, .entry-add, .add-to-plan { margin-top: 0.35rem; }
-.entry-edit > summary, .entry-add > summary, .add-to-plan > summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; }
-.entry-edit > summary { display: inline; color: var(--muted); }
-.entry-edit[open], .entry-add[open], .add-to-plan[open] { padding: 0.75rem; margin: 0.5rem 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-.add-to-plan { margin: 0.75rem 0; }
+details.disclosure { margin-top: 0.4rem; }
+details.disclosure[open] { padding: 0.75rem; margin: 0.5rem 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+details.disclosure[open] > summary { margin-bottom: 0.75rem; }
+
 
 .shopping-list { list-style: none; padding: 0; margin: 0 0 1rem; }
 .shopping-list li { display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--line); }
@@ -371,10 +428,8 @@ td form { margin: 0; }
 .idea-list h2 { font-size: 1.05rem; margin: 1rem 0 0.25rem; }
 .idea-list .plain-list { margin: 0; }
 .idea-list .plain-list > li { padding: 0.35rem 0; }
-.entry-edit[open] > summary { display: block; margin-bottom: 0.5rem; }
 .note-buttons { margin-top: 0.75rem; }
 .note-buttons form { margin: 0; }
-.note-buttons button { padding: 0.3rem 0.8rem; font-size: 0.9rem; }
 .entry-note {
   margin: 0.2rem 0 0;
   padding-left: 0.6rem;

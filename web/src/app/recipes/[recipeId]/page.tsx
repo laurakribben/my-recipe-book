@@ -74,12 +74,20 @@ export default async function RecipePage(props: Props) {
           Eingeplant für {formatDay(geplant)}. <Link href={`/plans?woche=${geplant}`}>Zum Wochenplan</Link>
         </p>
       )}
-      <div className="row small">
+      {access && (
+        <p>
+          <span className="badge">{recipe.visibility === "public" ? "öffentlich" : "privat"}</span>
+        </p>
+      )}
+      <div className="toolbar">
         <Link href={`/recipes/${recipe.id}/cook`} className="button">
           Kochmodus
         </Link>
-        {access && <span className="badge">{recipe.visibility === "public" ? "öffentlich" : "privat"}</span>}
-        {access && canEdit(access.role) && <Link href={`/recipes/${recipe.id}/edit`}>Bearbeiten</Link>}
+        {access && canEdit(access.role) && (
+          <Link href={`/recipes/${recipe.id}/edit`} className="button secondary">
+            Bearbeiten
+          </Link>
+        )}
       </div>
       {user && (
         <AddToPlan
