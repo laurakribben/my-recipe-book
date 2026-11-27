@@ -152,6 +152,10 @@ export default async function PlanWeekPage(props: Props) {
                           <span>Portionen</span>
                           <input type="number" name="servings" min={1} max={100} step="any" placeholder="wie im Rezept" />
                         </label>
+                        <label className="field">
+                          <span>Notiz (optional)</span>
+                          <input type="text" name="note" maxLength={500} placeholder="z. B. doppelte Menge Sauce" />
+                        </label>
                         <div className="row">
                           <button type="submit">Einplanen</button>
                         </div>
@@ -222,7 +226,7 @@ export default async function PlanWeekPage(props: Props) {
                       <span>{e.title}</span>
                     )}
                     {e.servings && <span className="badge">für {formatServings(e.servings)}</span>}
-                    {e.note && <span className="list-tags">{e.note}</span>}
+                    {e.note && <p className="entry-note">{e.note}</p>}
                     {editable && (
                       <details className="entry-edit">
                         <summary>Ändern</summary>
@@ -237,7 +241,7 @@ export default async function PlanWeekPage(props: Props) {
                           </label>
                           <label className="field">
                             <span>Notiz</span>
-                            <input type="text" name="note" maxLength={500} defaultValue={e.note ?? ""} />
+                            <input type="text" name="note" maxLength={500} defaultValue={e.note ?? ""} placeholder="nur im Wochenplan sichtbar" />
                           </label>
                           <div className="row">
                             <button type="submit">Speichern</button>
@@ -284,7 +288,7 @@ export default async function PlanWeekPage(props: Props) {
                       </label>
                       <label className="field">
                         <span>Notiz (optional)</span>
-                        <input type="text" name="note" maxLength={500} />
+                        <input type="text" name="note" maxLength={500} placeholder="z. B. Tofu statt Hähnchen" />
                       </label>
                     </div>
                     <button type="submit">Hinzufügen</button>

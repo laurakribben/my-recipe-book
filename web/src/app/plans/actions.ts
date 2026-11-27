@@ -356,6 +356,7 @@ export async function planIdea(planId: string, ideaId: string, formData: FormDat
     recipe_id: idea.recipe_id,
     title: idea.title,
     servings: parseServingsField(formData.get("servings")),
+    note: String(formData.get("note") ?? "").trim().slice(0, 500) || null,
     created_by: user.id,
   });
   if (error) {

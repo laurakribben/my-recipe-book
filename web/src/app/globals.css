@@ -375,3 +375,12 @@ td form { margin: 0; }
 .note-buttons { margin-top: 0.75rem; }
 .note-buttons form { margin: 0; }
 .note-buttons button { padding: 0.3rem 0.8rem; font-size: 0.9rem; }
+.entry-note {
+  margin: 0.2rem 0 0;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+  white-space: pre-line;
+}

@@ -67,6 +67,10 @@ export function AddToPlan({ recipeId, plans, defaultDay, defaultServings }: Prop
               <input type="number" name="servings" min={1} max={100} step="any" defaultValue={defaultServings ?? ""} placeholder="wie im Rezept" />
             </label>
           </div>
+          <label className="field">
+            <span>Notiz (optional, nur im Wochenplan sichtbar)</span>
+            <input type="text" name="note" maxLength={500} placeholder="z. B. Tofu statt Hähnchen" />
+          </label>
           <button type="submit" className="secondary">
             Einplanen
           </button>
