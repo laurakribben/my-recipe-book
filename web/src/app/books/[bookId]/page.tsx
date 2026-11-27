@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canEdit, getBookForUser } from "@/lib/books";
+import { PlusIcon, SettingsIcon, ShareIcon } from "@/components/icons";
 import { imageUrl } from "@/lib/images";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,19 +34,41 @@ export default async function BookPage(props: Props) {
 
   return (
     <>
-      <h1>{book.name}</h1>
-      <div className="toolbar">
-        {canEdit(role) && (
-          <Link href={`/books/${book.id}/new`} className="button">
-            Rezept hinzufügen
+      <div className="title-row">
+        <h1>{book.name}</h1>
+        <div className="title-actions">
+          <Link
+            href={`/books/${book.id}/settings#teilen`}
+            className="button secondary icon-button"
+            aria-label={role === "owner" ? "Teilen" : "Mitglieder"}
+            title={role === "owner" ? "Teilen" : "Mitglieder"}
+          >
+            <ShareIcon />
           </Link>
-        )}
-        <Link href={`/books/${book.id}/settings`} className="button secondary">
-          {role === "owner" ? "Teilen & Einstellungen" : "Mitglieder"}
-        </Link>
+          {canEdit(role) && (
+            <Link
+              href={`/books/${book.id}/settings#einstellungen`}
+              className="button secondary icon-button"
+              aria-label="Einstellungen"
+              title="Einstellungen"
+            >
+              <SettingsIcon />
+            </Link>
+          )}
+          {canEdit(role) && (
+            <Link
+              href={`/books/${book.id}/new`}
+              className="button icon-button"
+              aria-label="Rezept hinzufügen"
+              title="Rezept hinzufügen"
+            >
+              <PlusIcon />
+            </Link>
+          )}
+        </div>
       </div>
 
-      <form className="row" style={{ marginTop: "1.5rem" }}>
+      <form className="row" style={{ marginTop: "1rem" }}>
         <input type="search" name="q" defaultValue={search} placeholder="Rezepte durchsuchen" style={{ flex: "1 1 12rem" }} />
         <button type="submit" className="secondary">
           Suchen

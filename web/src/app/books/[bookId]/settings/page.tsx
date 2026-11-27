@@ -66,7 +66,7 @@ export default async function BookSettingsPage(props: Props) {
       {error && <p className="notice error">{error}</p>}
 
       {isOwner && (
-        <section>
+        <section id="teilen">
           <h2>Teilen</h2>
           <form action={shareBook.bind(null, book.id)} className="stack">
             <label>
@@ -88,7 +88,7 @@ export default async function BookSettingsPage(props: Props) {
         </section>
       )}
 
-      <h2>Mitglieder</h2>
+      <h2 id={isOwner ? undefined : "teilen"}>Mitglieder</h2>
       <div className="table-wrap">
         <table>
           <tbody>
@@ -148,6 +148,7 @@ export default async function BookSettingsPage(props: Props) {
         </table>
       </div>
 
+      <div id="einstellungen" />
       {completion && (
         <BulkCompletion counts={completion.counts} todo={completion.todo} run={completeBookBatch.bind(null, book.id)} />
       )}
