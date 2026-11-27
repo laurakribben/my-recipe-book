@@ -1,20 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cache } from "react";
-import { canEdit, getBookForUser, isUuid } from "@/lib/books";
-import { SOURCE_TYPE_LABELS, type Recipe } from "@/lib/recipe";
-import { createClient } from "@/lib/supabase/server";
+import { canEdit, getBookForUser } from "@/lib/books";
+import { SOURCE_TYPE_LABELS } from "@/lib/recipe";
+import { loadRecipe } from "@/lib/recipes";
 
 type Props = { params: Promise<{ recipeId: string }> };
-
-/** Loads a recipe the visitor may see: public ones for everyone, private ones for book members (RLS). */
-const loadRecipe = cache(async (recipeId: string) => {
-  if (!isUuid(recipeId)) return null;
-  const supabase = await createClient();
-  const { data } = await supabase.from("recipes").select("*").eq("id", recipeId).maybeSingle();
-  return data as Recipe | null;
-});
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { recipeId } = await props.params;
@@ -39,12 +30,13 @@ export default async function RecipePage(props: Props) {
       )}
       <h1>{recipe.title}</h1>
 
-      {access && (
-        <div className="row small">
-          <span className="badge">{recipe.visibility === "public" ? "öffentlich" : "privat"}</span>
-          {canEdit(access.role) && <Link href={`/recipes/${recipe.id}/edit`}>Bearbeiten</Link>}
-        </div>
-      )}
+      <div className="row small">
+        <Link href={`/recipes/${recipe.id}/cook`} className="button">
+          Kochmodus
+        </Link>
+        {access && <span className="badge">{recipe.visibility === "public" ? "öffentlich" : "privat"}</span>}
+        {access && canEdit(access.role) && <Link href={`/recipes/${recipe.id}/edit`}>Bearbeiten</Link>}
+      </div>
 
       {recipe.status === "incomplete" && (
         <p className="notice warning">
