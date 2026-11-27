@@ -1,0 +1,23 @@
+title: My Recipe Book
+description: Recipes collected from Instagram, websites, videos and photos.
+
+# GitHub Pages serves this repository at https://<user>.github.io/my-recipe-book/
+baseurl: "/my-recipe-book"
+
+collections:
+  recipes:
+    output: true
+    permalink: /recipes/:name/
+
+defaults:
+  - scope:
+      path: ""
+      type: recipes
+    values:
+      layout: recipe
+
+exclude:
+  - README.md
+  - CLAUDE.md
+  - docs/
+  - .github/

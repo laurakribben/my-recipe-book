@@ -1,0 +1,18 @@
+name: Recipe link
+description: Save a link so Claude turns it into a recipe.
+title: "[Recipe] "
+labels: ["recipe-link"]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: Link
+      description: Instagram post or reel, recipe website, YouTube video, etc.
+      placeholder: https://www.instagram.com/reel/...
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes (optional)
+      description: Anything Claude should know, e.g. "the recipe is in the comments" or "make it vegetarian".

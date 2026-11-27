@@ -1,0 +1,19 @@
+---
+layout: default
+---
+<h1>{{ site.title }}</h1>
+
+{% assign recipes = site.recipes | sort: "added" | reverse %}
+{% if recipes.size == 0 %}
+<p class="empty">No recipes yet. Open a "Recipe link" issue to add one.</p>
+{% else %}
+<ul class="recipe-list">
+  {% for recipe in recipes %}
+  <li>
+    <a href="{{ recipe.url | relative_url }}">{{ recipe.title }}</a>
+    {% if recipe.status == "incomplete" %}<span class="badge">incomplete</span>{% endif %}
+    {% if recipe.tags.size > 0 %}<span class="list-tags">{{ recipe.tags | join: " · " }}</span>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

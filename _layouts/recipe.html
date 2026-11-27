@@ -1,0 +1,44 @@
+---
+layout: default
+---
+<article class="recipe">
+  <h1>{{ page.title }}</h1>
+
+  {% if page.status == "incomplete" %}
+  <p class="warning"><strong>Incomplete:</strong> {{ page.missing }}</p>
+  {% endif %}
+
+  <ul class="meta">
+    {% if page.servings %}<li>Serves {{ page.servings }}</li>{% endif %}
+    {% if page.prep_time %}<li>Prep {{ page.prep_time }}</li>{% endif %}
+    {% if page.cook_time %}<li>Cook {{ page.cook_time }}</li>{% endif %}
+    {% if page.total_time %}<li>Total {{ page.total_time }}</li>{% endif %}
+  </ul>
+
+  {% if page.tags.size > 0 %}
+  <p class="tags">{% for tag in page.tags %}<span>{{ tag }}</span>{% endfor %}</p>
+  {% endif %}
+
+  <h2>Ingredients</h2>
+  {% for group in page.ingredients %}
+    {% if group.name %}<h3>{{ group.name }}</h3>{% endif %}
+    <ul>
+      {% for item in group.items %}<li>{{ item }}</li>{% endfor %}
+    </ul>
+  {% endfor %}
+
+  <h2>Steps</h2>
+  <ol>
+    {% for step in page.steps %}<li>{{ step }}</li>{% endfor %}
+  </ol>
+
+  {% if content != "" %}
+  <h2>Notes</h2>
+  {{ content }}
+  {% endif %}
+
+  <p class="source">
+    Source: <a href="{{ page.source_url }}">{{ page.source_author | default: page.source_url }}</a>
+    ({{ page.source_type }}) · added {{ page.added | date: "%-d %b %Y" }}
+  </p>
+</article>
