@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { canEdit, getBookForUser, isUuid } from "@/lib/books";
-import { env } from "@/lib/env";
+import { aiCallsLeft, aiLimit, recordAiUsage } from "@/lib/ai-usage";
 import { extractRecipe, ExtractionError, type ExtractionInput } from "@/lib/extract";
 import { fetchImage, fetchPage, FetchPageError, isLoginWalled } from "@/lib/fetch-page";
 import { deleteRecipeImages, storeRecipeImage } from "@/lib/image-storage";
@@ -20,7 +20,7 @@ import {
   type Recipe,
   type RecipeDraft,
 } from "@/lib/recipe";
-import { COMPLETERS, CompletionError } from "@/lib/recipe-completion";
+import { completeRecipe } from "@/lib/complete-recipe";
 import { nutritionFromForm } from "@/lib/nutrition";
 import { assignStepIngredients } from "@/lib/step-ingredients";
 import { createClient } from "@/lib/supabase/server";
@@ -37,15 +37,8 @@ export async function extractAction(bookId: string, _prev: ExtractState, formDat
   const access = await getBookForUser(bookId);
   if (!access || !canEdit(access.role)) return { ok: false, error: "Du darfst in diesem Buch keine Rezepte anlegen." };
 
-  const supabase = await createClient();
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count } = await supabase
-    .from("ai_extractions")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", access.user.id)
-    .gte("created_at", since);
-  if ((count ?? 0) >= env.aiDailyLimit()) {
-    return { ok: false, error: `Tageslimit von ${env.aiDailyLimit()} KI-Rezepten erreicht. Morgen geht es weiter – oder trag das Rezept von Hand ein.` };
+  if ((await aiCallsLeft(access.user.id, "extract")) <= 0) {
+    return { ok: false, error: `Tageslimit von ${aiLimit("extract")} KI-Rezepten erreicht. Morgen geht es weiter – oder trag das Rezept von Hand ein.` };
   }
 
   let input: ExtractionInput;
@@ -88,7 +81,7 @@ export async function extractAction(bookId: string, _prev: ExtractState, formDat
     const targetServings =
       Number.isInteger(servingsValue) && servingsValue >= 1 && servingsValue <= 50 ? servingsValue : undefined;
     const result = await extractRecipe(input, { targetServings });
-    await supabase.from("ai_extractions").insert({ user_id: access.user.id, ...result.usage });
+    await recordAiUsage(access.user.id, "extract", result.usage);
 
     const sourceUrl = String(formData.get("source_url") ?? "").trim();
     if (mode === "images" && /^https?:\/\//i.test(sourceUrl)) {
@@ -184,18 +177,11 @@ async function stepIngredientsFor(
   }
   if (ingredients.length === 0) return steps.map(() => []);
 
-  const supabase = await createClient();
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count } = await supabase
-    .from("ai_extractions")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("created_at", since);
-  if ((count ?? 0) >= env.aiDailyLimit()) return null;
+  if ((await aiCallsLeft(userId, "complete")) <= 0) return null;
 
   try {
     const { lists, usage } = await assignStepIngredients(ingredients, steps);
-    await supabase.from("ai_extractions").insert({ user_id: userId, ...usage });
+    await recordAiUsage(userId, "complete", usage);
     return lists;
   } catch (error) {
     console.error("Assigning ingredients to steps failed", error instanceof Error ? error.message : error);
@@ -347,56 +333,13 @@ export async function completeRecipeAction(recipeId: string, _prev: CompleteStat
   if (!recipe || !access || !canEdit(access.role)) return { error: "Du darfst dieses Rezept nicht bearbeiten." };
 
   const redo = String(formData.get("redo") ?? "");
-  const todo = COMPLETERS.filter((c) => (c.id === redo || c.isMissing(recipe)) && !c.blockedReason(recipe));
-  if (todo.length === 0) return { done: [], failed: [] };
-
-  let aiLeft = env.aiDailyLimit();
-  if (todo.some((c) => c.usesAi)) {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { count } = await supabase
-      .from("ai_extractions")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", access.user.id)
-      .gte("created_at", since);
-    aiLeft -= count ?? 0;
-  }
-
-  const done: string[] = [];
-  const failed: string[] = [];
-  let update: Partial<Recipe> = {};
-  for (const c of todo) {
-    if (c.usesAi && aiLeft <= 0) {
-      failed.push(`${c.label}: Tageslimit für KI erreicht`);
-      continue;
-    }
-    try {
-      const result = await c.run(recipe);
-      update = { ...update, ...result.update };
-      if (result.usage) {
-        aiLeft--;
-        await supabase.from("ai_extractions").insert({ user_id: access.user.id, ...result.usage });
-      }
-      done.push(c.label);
-    } catch (error) {
-      console.error(`Completing "${c.id}" failed`, error instanceof Error ? error.message : error);
-      const userMessage =
-        error instanceof FetchPageError || error instanceof ExtractionError || error instanceof CompletionError;
-      failed.push(userMessage ? `${c.label}: ${error.message}` : c.label);
-    }
-  }
-
-  if (Object.keys(update).length > 0) {
-    const { error } = await supabase.from("recipes").update(update).eq("id", recipeId);
-    if (error) {
-      if (update.image_path) await deleteRecipeImages([update.image_path]);
-      return { error: "Speichern hat nicht geklappt." };
-    }
-    if (update.image_path && recipe.image_path) await deleteRecipeImages([recipe.image_path]);
-  }
+  const budget = { left: await aiCallsLeft(access.user.id, "complete") };
+  const result = await completeRecipe(access.user.id, recipe, budget, redo);
+  if ("error" in result) return result;
 
   revalidatePath(`/recipes/${recipeId}`, "layout");
   revalidatePath(`/books/${recipe.book_id}`);
-  return { done, failed };
+  return result;
 }
 
 /** Share panel on the recipe page: switch between private and public. */

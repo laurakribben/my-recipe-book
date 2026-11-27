@@ -40,9 +40,10 @@ export function DayBalance({ balance }: { balance: Balance }) {
 
 const ROWS: { key: Macro; swatch?: string }[] = [
   { key: "carbs", swatch: "carbs" },
+  // Part of the carbs, so directly underneath them.
+  { key: "sugar" },
   { key: "fat", swatch: "fat" },
   { key: "protein", swatch: "protein" },
-  { key: "sugar" },
 ];
 
 /** Above the week table: one meter per nutrient with its target range marked. */

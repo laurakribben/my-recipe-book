@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getBookForUser, isUuid } from "@/lib/books";
+import { aiCallsLeft } from "@/lib/ai-usage";
+import { canEdit, getBookForUser, isUuid } from "@/lib/books";
+import { completeRecipe, runnableCompleters } from "@/lib/complete-recipe";
 import { deleteRecipeImages } from "@/lib/image-storage";
+import type { Recipe } from "@/lib/recipe";
 import { shareWithEmail } from "@/lib/sharing";
 import { createClient, getUser } from "@/lib/supabase/server";
 
@@ -121,4 +124,53 @@ export async function leaveBook(bookId: string) {
   const supabase = await createClient();
   await supabase.from("book_members").delete().eq("book_id", bookId).eq("user_id", access.user.id);
   redirect("/");
+}
+
+// ---------------------------------------------------------------- fill in all recipes
+
+export type BatchResult =
+  | {
+      /** Recipes handled in this batch and what didn't work for them. */
+      processed: { title: string; failed: string[] }[];
+      /** Pass back for the next batch; null when every recipe has been handled. */
+      next: string | null;
+      limitReached: boolean;
+    }
+  | { error: string };
+
+/** Recipes per call: they run at the same time, so one call stays well under a minute. */
+const BATCH_SIZE = 3;
+
+/**
+ * "Fehlendes in allen Rezepten ergänzen" in the book settings: completes the next few recipes
+ * (ordered by id, after `after`) that are missing something the app can fill in. The page
+ * calls this again with `next` until it is null, so progress is shown and can be stopped.
+ */
+export async function completeBookBatch(bookId: string, after: string | null): Promise<BatchResult> {
+  if (!isUuid(bookId) || (after !== null && !isUuid(after))) return { error: "Unbekanntes Rezeptbuch." };
+  const access = await getBookForUser(bookId);
+  if (!access || !canEdit(access.role)) return { error: "Du darfst in diesem Buch keine Rezepte bearbeiten." };
+
+  const supabase = await createClient();
+  let query = supabase.from("recipes").select("*").eq("book_id", bookId).order("id");
+  if (after) query = query.gt("id", after);
+  const { data, error } = await query;
+  if (error) return { error: "Die Rezepte konnten nicht geladen werden." };
+
+  const candidates = ((data ?? []) as Recipe[]).filter((r) => runnableCompleters(r).length > 0);
+  const batch = candidates.slice(0, BATCH_SIZE);
+  const budget = { left: await aiCallsLeft(access.user.id, "complete") };
+
+  const results = await Promise.all(batch.map((r) => completeRecipe(access.user.id, r, budget)));
+  const processed = batch.map((r, i) => {
+    const result = results[i];
+    return { title: r.title, failed: "error" in result ? [result.error] : result.failed };
+  });
+
+  for (const r of batch) revalidatePath(`/recipes/${r.id}`, "layout");
+  revalidatePath(`/books/${bookId}`);
+  const more = candidates.length > batch.length;
+  // Out of AI calls with recipes left: stop instead of running into the limit for each of them.
+  const limitReached = more && budget.left <= 0;
+  return { processed, next: more && !limitReached ? batch[batch.length - 1].id : null, limitReached };
 }

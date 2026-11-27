@@ -26,5 +26,8 @@ export const env = {
   supabaseServiceRoleKey: () =>
     required("SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY),
   siteUrl: () => required("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL).replace(/\/$/, ""),
+  /** AI recipe extractions (reading a link, text or photos) per person and 24 hours. */
   aiDailyLimit: () => Number(process.env.AI_DAILY_LIMIT ?? 30),
+  /** Small AI calls that complete recipes (nutrition, ingredients per step, aisles) per person and 24 hours. */
+  aiCompletionDailyLimit: () => Number(process.env.AI_COMPLETION_DAILY_LIMIT ?? 300),
 };

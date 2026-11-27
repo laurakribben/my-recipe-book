@@ -434,6 +434,8 @@ td form { margin: 0; }
 .completion-list { list-style: none; padding: 0; margin: 0 0 1rem; }
 .completion-list li { margin: 0.3rem 0; }
 .completion-list li > span:first-child { display: inline-block; width: 1.2rem; color: var(--accent); }
+.bulk-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0 0 1rem; }
+.bulk-progress progress { flex: 1 1 12rem; height: 0.6rem; accent-color: var(--accent); }
 
 /* ---------------------------------------------------------------- servings */
 

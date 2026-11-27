@@ -1,5 +1,6 @@
 "use server";
 
+import { recordAiUsage } from "@/lib/ai-usage";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -265,10 +266,7 @@ export async function addWeekToShopping(planId: string, weekStart: string) {
 /** Lets the AI sort new shopping items into supermarket aisles (falls back to "Sonstiges"). */
 async function withAisles<T extends { text: string }>(userId: string, rows: T[]): Promise<(T & { aisle: string })[]> {
   const { aisles, usage } = await assignAisles(rows.map((r) => r.text));
-  if (usage) {
-    const supabase = await createClient();
-    await supabase.from("ai_extractions").insert({ user_id: userId, ...usage });
-  }
+  if (usage) await recordAiUsage(userId, "complete", usage);
   return rows.map((r, i) => ({ ...r, aisle: aisles[i] }));
 }
 

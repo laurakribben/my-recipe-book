@@ -50,6 +50,9 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
   (meters with the DGE/WHO target ranges). No calorie totals. Each person can turn it off in the
   plan settings ("Anzeige").
 - Each user can run 30 AI extractions per 24 hours (`AI_DAILY_LIMIT`), to keep costs predictable.
+  The small AI calls that complete recipes (nutrition, ingredients per step, shopping aisles) have their
+  own budget of 300 per 24 hours (`AI_COMPLETION_DAILY_LIMIT`), so completing a whole book at once
+  (book settings → "Fehlendes in allen Rezepten ergänzen", runs in batches of 3) doesn't use up extractions.
 
 ## Setup (once)
 
@@ -68,7 +71,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
    `supabase/migrations/0010_entry_position.sql` (order of entries within a cell) and
    `supabase/migrations/0011_entry_ingredients.sql` (ingredients typed in for plan entries) and
    `supabase/migrations/0012_nutrition.sql` (nutrition facts of recipes) and
-   `supabase/migrations/0013_balance_setting.sql` (personal switch for the nutrition balance).
+   `supabase/migrations/0013_balance_setting.sql` (personal switch for the nutrition balance),
+   `supabase/migrations/0014_ai_usage_kind.sql` (separate AI limits for extracting and completing).
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address
@@ -105,6 +109,7 @@ costs roughly 0.1–1 cent.
    | `ANTHROPIC_API_KEY` | Claude API key |
    | `NEXT_PUBLIC_SITE_URL` | the app's address, same as Supabase's Site URL |
    | `AI_DAILY_LIMIT` | optional, default 30 |
+   | `AI_COMPLETION_DAILY_LIMIT` | optional, default 300 |
 
 3. Deploy. Then log in with the email from step 1.6 and create your first recipe book.
 

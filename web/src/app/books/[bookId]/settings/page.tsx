@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ConfirmButton } from "@/components/confirm-button";
 import { notFound } from "next/navigation";
-import { getBookForUser } from "@/lib/books";
-import { ROLE_LABELS, type BookRole } from "@/lib/recipe";
+import { canEdit, getBookForUser } from "@/lib/books";
+import { ROLE_LABELS, type BookRole, type Recipe } from "@/lib/recipe";
+import { COMPLETERS } from "@/lib/recipe-completion";
 import { createClient } from "@/lib/supabase/server";
+import { BulkCompletion } from "./bulk-completion";
 import {
   changeMemberRole,
+  completeBookBatch,
   deleteBook,
   leaveBook,
   removeMember,
@@ -16,6 +19,8 @@ import {
 } from "../../actions";
 
 export const metadata: Metadata = { title: "Teilen & Einstellungen" };
+// Each batch of "Fehlendes ergänzen" fetches pages and calls the AI for several recipes.
+export const maxDuration = 60;
 
 type Props = { params: Promise<{ bookId: string }>; searchParams: Promise<{ ok?: string; error?: string }> };
 
@@ -36,6 +41,20 @@ export default async function BookSettingsPage(props: Props) {
   const { data: invites } = isOwner
     ? await supabase.from("book_invites").select("id, email, role").eq("book_id", book.id).order("created_at")
     : { data: [] };
+
+  // What the recipes are missing, for "Fehlendes in allen Rezepten ergänzen".
+  let completion: { counts: { label: string; missing: number; runnable: number }[]; todo: number } | null = null;
+  if (canEdit(role)) {
+    const { data } = await supabase.from("recipes").select("*").eq("book_id", book.id);
+    const recipes = (data ?? []) as Recipe[];
+    completion = {
+      counts: COMPLETERS.map((c) => {
+        const missing = recipes.filter((r) => c.isMissing(r));
+        return { label: c.label, missing: missing.length, runnable: missing.filter((r) => !c.blockedReason(r)).length };
+      }),
+      todo: recipes.filter((r) => COMPLETERS.some((c) => c.isMissing(r) && !c.blockedReason(r))).length,
+    };
+  }
 
   return (
     <div className="narrow">
@@ -128,6 +147,10 @@ export default async function BookSettingsPage(props: Props) {
           </tbody>
         </table>
       </div>
+
+      {completion && (
+        <BulkCompletion counts={completion.counts} todo={completion.todo} run={completeBookBatch.bind(null, book.id)} />
+      )}
 
       {isOwner ? (
         <>
