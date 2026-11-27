@@ -28,12 +28,12 @@ export async function createBook(formData: FormData) {
   const name = BookName.safeParse(formData.get("name"));
   if (!name.success) redirect(`/?error=${encodeURIComponent("Bitte einen Namen angeben (höchstens 100 Zeichen).")}`);
 
+  // The id is created here and the row is not read back: reading it back in the same
+  // request fails the "members can see" rule, because the owner membership is only
+  // added by a trigger after the insert.
+  const id = crypto.randomUUID();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("books")
-    .insert({ name: name.data, owner_id: user.id })
-    .select("id")
-    .single();
+  const { error } = await supabase.from("books").insert({ id, name: name.data, owner_id: user.id });
   if (error) {
     console.error("Creating a book failed", { code: error.code, message: error.message, details: error.details });
     // 23503: no profile row for this user (account created before the database setup ran).
@@ -43,7 +43,7 @@ export async function createBook(formData: FormData) {
         : `Datenbankfehler ${error.code ?? ""}`.trim();
     redirect(`/?error=${encodeURIComponent(`Das Rezeptbuch konnte nicht angelegt werden (${reason}).`)}`);
   }
-  redirect(`/books/${data.id}`);
+  redirect(`/books/${id}`);
 }
 
 export async function renameBook(bookId: string, formData: FormData) {
