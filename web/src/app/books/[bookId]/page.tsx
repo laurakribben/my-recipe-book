@@ -18,19 +18,19 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 export default async function BookPage(props: Props) {
   const { bookId } = await props.params;
   const { q } = await props.searchParams;
-  const access = await getBookForUser(bookId);
-  if (!access) notFound();
-  const { book, role } = access;
-
   const supabase = await createClient();
   let query = supabase
     .from("recipes")
     .select("id, title, tags, status, visibility, image_path")
-    .eq("book_id", book.id)
+    .eq("book_id", bookId)
     .order("created_at", { ascending: false });
   const search = q?.trim();
   if (search) query = query.ilike("title", `%${search.replace(/[%_\\]/g, "\\$&")}%`);
-  const { data: recipes } = await query;
+
+  // Both at the same time; the access rules in the database only return recipes the user may see.
+  const [access, { data: recipes }] = await Promise.all([getBookForUser(bookId), query]);
+  if (!access) notFound();
+  const { book, role } = access;
 
   return (
     <>

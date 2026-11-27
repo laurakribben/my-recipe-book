@@ -71,16 +71,18 @@ export function AddEntryButton({ day, meal, label }: { day: string; meal: string
   );
 }
 
+type RecipeGroup = { book: string; recipes: { id: string; title: string }[] };
+
 /**
- * The add form, rendered once per page (the recipe list can be long). `action` is the
- * server action; the recipe options come pre-grouped by recipe book.
+ * The add form, rendered once per page. The recipe choice is loaded when the dialog first
+ * opens (it can be long), then kept for the rest of the visit.
  */
 export function AddEntryDialog({
   action,
-  recipeGroups,
+  loadRecipes,
 }: {
   action: (formData: FormData) => Promise<void>;
-  recipeGroups: { book: string; recipes: { id: string; title: string }[] }[];
+  loadRecipes: () => Promise<RecipeGroup[]>;
 }) {
   const current = useSyncExternalStore(
     (l) => {
@@ -90,6 +92,18 @@ export function AddEntryDialog({
     () => target,
     () => null,
   );
+  const [recipeGroups, setRecipeGroups] = useState<RecipeGroup[] | null>(null);
+  const open = current !== null;
+  useEffect(() => {
+    if (!open || recipeGroups !== null) return;
+    let cancelled = false;
+    loadRecipes()
+      .then((groups) => !cancelled && setRecipeGroups(groups))
+      .catch(() => !cancelled && setRecipeGroups([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [open, recipeGroups, loadRecipes]);
 
   return (
     <Dialog open={current !== null} onClose={() => setTarget(null)} title={current ? `Gericht hinzufügen – ${current.label}` : ""}>
@@ -99,9 +113,11 @@ export function AddEntryDialog({
         <input type="hidden" name="meal" value={current?.meal ?? ""} />
         <label className="field">
           <span>Rezept</span>
-          <select name="recipe_id" defaultValue="">
-            <option value="">– kein Rezept, freier Eintrag –</option>
-            {recipeGroups.map((g) => (
+          <select name="recipe_id" defaultValue="" aria-busy={recipeGroups === null}>
+            <option value="">
+              {recipeGroups === null ? "Rezepte werden geladen…" : "– kein Rezept, freier Eintrag –"}
+            </option>
+            {(recipeGroups ?? []).map((g) => (
               <optgroup key={g.book} label={g.book}>
                 {g.recipes.map((r) => (
                   <option key={r.id} value={r.id}>

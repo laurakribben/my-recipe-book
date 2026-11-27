@@ -10,7 +10,7 @@ import type { Recipe } from "@/lib/recipe";
 import { parseServings, scaleIngredient } from "@/lib/servings";
 import { assignAisles } from "@/lib/aisles";
 import { shareWithEmail } from "@/lib/sharing";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUser } from "@/lib/supabase/server";
 
 const ShareRole = z.enum(["editor", "viewer"]);
 const PlanName = z.string().trim().min(1).max(100);
@@ -638,4 +638,35 @@ export async function planIdeaAt(planId: string, ideaId: string, day: string, me
   await supabase.from("meal_plan_ideas").delete().eq("id", ideaId);
   revalidatePath(`/plans/${planId}`);
   return true;
+}
+
+// ---------------------------------------------------------------- recipe choice for the add dialog
+
+export type RecipeGroup = { book: string; recipes: { id: string; title: string }[] };
+
+/**
+ * Recipes the user can plan, grouped by book: those in their own and shared books (without the
+ * book filter, public recipes of other people's books would show up too). Loaded by the add
+ * dialog when it first opens, so the plan page itself stays small and quick to refresh.
+ */
+export async function loadPlannableRecipes(): Promise<RecipeGroup[]> {
+  const user = await getUser();
+  if (!user) return [];
+  const supabase = await createClient();
+  const { data: memberships } = await supabase.from("book_members").select("book_id").eq("user_id", user.id);
+  const bookIds = (memberships ?? []).map((m) => m.book_id);
+  if (bookIds.length === 0) return [];
+  const { data } = await supabase
+    .from("recipes")
+    .select("id, title, books (name)")
+    .in("book_id", bookIds)
+    .order("title")
+    .limit(1000);
+  const byBook = new Map<string, RecipeGroup["recipes"]>();
+  for (const r of data ?? []) {
+    const book = (r.books as unknown as { name: string } | null)?.name ?? "Rezepte";
+    if (!byBook.has(book)) byBook.set(book, []);
+    byBook.get(book)!.push({ id: r.id, title: r.title });
+  }
+  return [...byBook.entries()].map(([book, recipes]) => ({ book, recipes }));
 }

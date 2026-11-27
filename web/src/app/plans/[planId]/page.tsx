@@ -27,6 +27,7 @@ import { computeBalance } from "@/lib/balance";
 import { getProfile } from "@/lib/profile";
 import {
   addEntry,
+  loadPlannableRecipes,
   addWeekToShopping,
   deleteIdea,
   moveIdea,
@@ -58,24 +59,8 @@ export default async function PlanWeekPage(props: Props) {
 
   const supabase = await createClient();
 
-  // Recipes the user can plan: those in their own and shared books, grouped by book. (Without
-  // the book filter, public recipes of other people's books would show up too.)
-  async function plannableRecipes() {
-    if (!editable) return [];
-    const { data: memberships } = await supabase.from("book_members").select("book_id").eq("user_id", user.id);
-    const bookIds = (memberships ?? []).map((m) => m.book_id);
-    if (bookIds.length === 0) return [];
-    const { data } = await supabase
-      .from("recipes")
-      .select("id, title, book_id, books (name)")
-      .in("book_id", bookIds)
-      .order("title")
-      .limit(1000);
-    return data ?? [];
-  }
-
   // Independent queries run at the same time: each one is a round trip to the database.
-  const [{ data: entryRows }, profile, { data: ideaRows }, recipeRows, plans] = await Promise.all([
+  const [{ data: entryRows }, profile, { data: ideaRows }, plans] = await Promise.all([
     supabase
       .from("meal_plan_entries")
       .select("id, plan_id, day, meal, position, recipe_id, title, servings, note, ingredients, created_at")
@@ -86,7 +71,6 @@ export default async function PlanWeekPage(props: Props) {
       .order("created_at"),
     getProfile(),
     supabase.from("meal_plan_ideas").select("id, recipe_id, title, week, created_at").eq("plan_id", plan.id).order("created_at"),
-    plannableRecipes(),
     getMyPlans(user.id),
   ]);
   const entries = (entryRows ?? []) as PlanEntry[];
@@ -117,12 +101,6 @@ export default async function PlanWeekPage(props: Props) {
     { list: "next", title: "Nächste Woche", start: nextWeek, items: ideas.filter((i) => i.week >= nextWeek) },
   ];
 
-  const byBook = new Map<string, { id: string; title: string }[]>();
-  for (const r of recipeRows) {
-    const book = (r.books as unknown as { name: string } | null)?.name ?? "Rezepte";
-    if (!byBook.has(book)) byBook.set(book, []);
-    byBook.get(book)!.push({ id: r.id, title: r.title });
-  }
 
   return (
     <>
@@ -275,7 +253,7 @@ export default async function PlanWeekPage(props: Props) {
       {editable && (
         <AddEntryDialog
           action={addEntry.bind(null, plan.id)}
-          recipeGroups={[...byBook.entries()].map(([book, recipes]) => ({ book, recipes }))}
+          loadRecipes={loadPlannableRecipes}
         />
       )}
 
