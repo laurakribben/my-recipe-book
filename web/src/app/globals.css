@@ -689,7 +689,7 @@ details.disclosure[open] > summary { margin-bottom: 0.75rem; }
 
 .week-table { margin-top: 1rem; }
 .meal-head { display: none; }
-.week-day { margin-bottom: 0.5rem; scroll-margin-top: 1rem; }
+.week-day { margin-bottom: 0.5rem; }
 .day-head { margin: 1.5rem 0 0.25rem; padding-bottom: 0.3rem; font-size: 1.15rem; border-bottom: 2px solid var(--line); }
 .week-day.today .day-head { color: var(--accent); border-color: var(--accent); }
 .day-head .badge { margin-left: 0.5rem; }
@@ -807,7 +807,10 @@ details.disclosure[open] > summary { margin-bottom: 0.75rem; }
 .cell-entries li.insert-before { box-shadow: inset 0 3px 0 var(--accent); }
 .cell-entries li.insert-after { box-shadow: inset 0 -3px 0 var(--accent); }
 
-html { scroll-padding-top: calc(var(--header-height) + 0.5rem); }
+/* Jump targets (#teilen, #tag-…) stop below the sticky header. Deliberately not scroll-padding on
+   <html>: Next.js then scrolls pages that start right under the header, and Safari ignores the
+   padding when doing so, which hid the top of every page behind the header. */
+[id] { scroll-margin-top: calc(var(--header-height) + 0.5rem); }
 
 /* Start page: two columns on wide screens. */
 @media (min-width: 900px) {
