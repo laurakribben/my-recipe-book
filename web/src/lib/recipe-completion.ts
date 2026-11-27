@@ -3,6 +3,8 @@ import { fetchImage, fetchPage, isLoginWalled } from "@/lib/fetch-page";
 import { storeRecipeImage } from "@/lib/image-storage";
 import { isImageType } from "@/lib/images";
 import { isStepIngredients, siteName, type Recipe } from "@/lib/recipe";
+import { readNutrition } from "@/lib/nutrition";
+import { estimateNutrition } from "@/lib/nutrition-ai";
 import { assignStepIngredients } from "@/lib/step-ingredients";
 
 /** A failure with a message meant for the user (German). */
@@ -61,6 +63,18 @@ export const COMPLETERS: Completer[] = [
     run: async (r) => {
       const { lists, usage } = await assignStepIngredients(r.ingredients, r.steps);
       return { update: { step_ingredients: lists }, usage };
+    },
+  },
+  {
+    id: "nutrition",
+    label: "Nährwerte",
+    usesAi: true,
+    isMissing: (r) => !readNutrition(r.nutrition),
+    blockedReason: (r) => (r.ingredients.length === 0 ? "Es sind keine Zutaten eingetragen." : null),
+    run: async (r) => {
+      const { nutrition, usage } = await estimateNutrition(r.title, r.ingredients, r.servings);
+      if (!nutrition) throw new CompletionError("Die KI konnte die Nährwerte nicht schätzen.");
+      return { update: { nutrition }, usage };
     },
   },
 ];

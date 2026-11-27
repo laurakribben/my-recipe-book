@@ -767,3 +767,16 @@ html { scroll-padding-top: calc(var(--header-height) + 0.5rem); }
   overflow: hidden;
 }
 .entry-ingredients::before { content: "Zutaten: "; }
+
+/* ---------------------------------------------------------------- nutrition */
+
+.nutrition { margin-top: 1.5rem; }
+.nutrition h2 { margin-bottom: 0; }
+.nutrition-basis { margin: 0 0 0.5rem; }
+.nutrition table { font-size: 0.95rem; }
+.nutrition th { font-weight: normal; }
+.nutrition td { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nutrition tr.sub th { padding-left: 1rem; color: var(--muted); }
+.nutrition-source { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--muted); }
+.nutrition-source.geschaetzt::before { content: "≈ "; font-weight: bold; color: var(--accent); }
+.nutrition-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0 1rem; }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { imageUrl } from "@/lib/images";
+import { Nutrition, readNutrition } from "@/lib/nutrition";
 
 export const SOURCE_TYPES = ["instagram", "website", "youtube", "tiktok", "photo", "text", "other"] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
@@ -55,6 +56,8 @@ export type Recipe = {
   image_source_url: string | null;
   /** Ingredients with amounts used in each step (one list per step), or null if not assigned. */
   step_ingredients: string[][] | null;
+  /** Nutrition facts with basis and source, or null. */
+  nutrition: Nutrition | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -89,6 +92,7 @@ export const RecipeInput = z.object({
     .max(2000)
     .refine((v) => v === "" || /^https?:\/\//i.test(v), "Die Bildquelle muss mit http:// oder https:// beginnen.")
     .transform((v) => v || null),
+  nutrition: Nutrition.nullable(),
 });
 export type RecipeInput = z.input<typeof RecipeInput>;
 
@@ -117,6 +121,7 @@ export type RecipeDraft = {
   image_source_url: string;
   /** Ingredients per step for cooking mode, from the AI; null if not assigned. */
   step_ingredients: string[][] | null;
+  nutrition: Nutrition | null;
 };
 
 export const EMPTY_DRAFT: RecipeDraft = {
@@ -140,6 +145,7 @@ export const EMPTY_DRAFT: RecipeDraft = {
   image_credit: "",
   image_source_url: "",
   step_ingredients: null,
+  nutrition: null,
 };
 
 export function recipeToDraft(r: Recipe): RecipeDraft {
@@ -164,6 +170,7 @@ export function recipeToDraft(r: Recipe): RecipeDraft {
     image_credit: r.image_credit ?? "",
     image_source_url: r.image_source_url ?? "",
     step_ingredients: r.step_ingredients,
+    nutrition: readNutrition(r.nutrition),
   };
 }
 

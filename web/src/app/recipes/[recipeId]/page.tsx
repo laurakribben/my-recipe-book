@@ -8,6 +8,8 @@ import { SOURCE_TYPE_LABELS, siteName } from "@/lib/recipe";
 import { loadRecipe } from "@/lib/recipes";
 import { AddToPlan } from "@/components/add-to-plan";
 import { RecordRecentView } from "@/components/recent";
+import { NutritionFacts } from "@/components/nutrition-facts";
+import { readNutrition } from "@/lib/nutrition";
 import { SettingsIcon } from "@/components/icons";
 import { ShareRecipe } from "@/components/share-recipe";
 import { setRecipeVisibility } from "../actions";
@@ -139,6 +141,7 @@ export default async function RecipePage(props: Props) {
             ingredients={recipe.ingredients}
             initialServings={plannedServings > 0 && plannedServings <= 100 ? plannedServings : null}
           />
+          {readNutrition(recipe.nutrition) && <NutritionFacts nutrition={readNutrition(recipe.nutrition)!} />}
         </section>
         <section className="recipe-steps">
           <h2>Zubereitung</h2>

@@ -55,6 +55,7 @@ function toRow(file: string) {
     visibility,
     image_credit: "",
     image_source_url: "",
+    nutrition: null,
   });
   const added = fm.added instanceof Date ? fm.added.toISOString() : fm.added ? new Date(String(fm.added)).toISOString() : undefined;
   return { ...parsed, created_at: added, updated_at: added };

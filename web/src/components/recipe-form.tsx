@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { ingredientsToText, SOURCE_TYPE_LABELS, SOURCE_TYPES, stepBasis, type RecipeDraft } from "@/lib/recipe";
 import { shrinkImage } from "@/lib/shrink-image";
+import { BASIS_LABELS, NUTRIENTS, NUTRITION_BASES, NUTRITION_SOURCES, SOURCE_LABELS } from "@/lib/nutrition";
 import type { SaveState } from "@/app/recipes/actions";
 
 type Props = {
@@ -64,6 +65,50 @@ export function RecipeForm({ draft, action, submitLabel }: Props) {
           <textarea name="ingredients" defaultValue={ingredientsToText(draft.ingredients)} rows={10} />
           <span className="hint">Eine Zutat pro Zeile. Zwischenüberschriften mit # davor, z. B. „# Teig“.</span>
         </label>
+      </fieldset>
+
+      <fieldset className="form-section">
+        <legend>Nährwerte</legend>
+        <div className="nutrition-fields">
+          {NUTRIENTS.map((n) => (
+            <label key={n.key} className="field">
+              <span>
+                {n.label} ({n.unit})
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                name={`nutrition_${n.key}`}
+                defaultValue={draft.nutrition?.[n.key] != null ? String(draft.nutrition[n.key]).replace(".", ",") : ""}
+                pattern="[0-9]+([.,][0-9]+)?"
+                title="Eine Zahl, z. B. 12,5"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="grid-2">
+          <label className="field">
+            <span>Bezug</span>
+            <select name="nutrition_basis" defaultValue={draft.nutrition?.basis ?? "portion"}>
+              {NUTRITION_BASES.map((b) => (
+                <option key={b} value={b}>
+                  {BASIS_LABELS[b]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Herkunft</span>
+            <select name="nutrition_source" defaultValue={draft.nutrition?.source ?? "eigene"}>
+              {NUTRITION_SOURCES.map((x) => (
+                <option key={x} value={x}>
+                  {SOURCE_LABELS[x]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <span className="hint">Leer lassen, wenn unbekannt. Geschätzte Werte werden im Rezept als Schätzung gekennzeichnet.</span>
       </fieldset>
 
       <fieldset className="form-section">

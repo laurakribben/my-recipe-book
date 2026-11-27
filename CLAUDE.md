@@ -16,7 +16,9 @@ aria-label), `details.disclosure` for expandable forms, `.toolbar` for a page's 
 Labels (`.badge`, tags) are never clickable. Note: `.small` is a text size, not a button size.
 
 The extraction prompt in `web/src/lib/extract.ts` follows the same recipe rules as below
-(German, never guess, keep amounts); keep the two in sync.
+(German, never guess, keep amounts); keep the two in sync. One deliberate exception: nutrition facts
+are estimated by the AI when the source has none, and are then always labelled as an estimate
+("von der KI geschätzt"); never present estimates as facts.
 
 ## Old site: processing workflow
 

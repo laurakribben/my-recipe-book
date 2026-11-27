@@ -21,6 +21,7 @@ import {
   type RecipeDraft,
 } from "@/lib/recipe";
 import { COMPLETERS, CompletionError } from "@/lib/recipe-completion";
+import { nutritionFromForm } from "@/lib/nutrition";
 import { assignStepIngredients } from "@/lib/step-ingredients";
 import { createClient } from "@/lib/supabase/server";
 
@@ -128,6 +129,7 @@ function parseRecipeForm(formData: FormData) {
     visibility: get("visibility") === "public" ? "public" : "private",
     image_credit: get("image_credit"),
     image_source_url: get("image_source_url"),
+    nutrition: nutritionFromForm(formData),
   });
 }
 

@@ -41,6 +41,10 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
   ingredients merged into one row that names each recipe and its amount (`src/lib/shopping.ts`).
 - Deleting a recipe or clearing the list asks first; removing plan entries, ideas and shopping
   items shows "Rückgängig" for a few seconds.
+- Nutrition facts (kcal, protein, fat, carbs, sugar, fiber, salt; per serving or whole recipe):
+  taken from the source when it has them, otherwise estimated by the AI and labelled as such.
+  Shown under the ingredients; editable in the form; "Fehlendes ergänzen" estimates them for
+  older recipes (`src/lib/nutrition.ts`, `src/lib/nutrition-ai.ts`).
 - Each user can run 30 AI extractions per 24 hours (`AI_DAILY_LIMIT`), to keep costs predictable.
 
 ## Setup (once)
@@ -58,7 +62,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
    `supabase/migrations/0008_search_and_aisles.sql` (search across books, shopping list aisles) and
    `supabase/migrations/0009_meal_slots.sql` (Morgens/Mittags/Abends/Snack in the meal plan) and
    `supabase/migrations/0010_entry_position.sql` (order of entries within a cell) and
-   `supabase/migrations/0011_entry_ingredients.sql` (ingredients typed in for plan entries).
+   `supabase/migrations/0011_entry_ingredients.sql` (ingredients typed in for plan entries) and
+   `supabase/migrations/0012_nutrition.sql` (nutrition facts of recipes).
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address
