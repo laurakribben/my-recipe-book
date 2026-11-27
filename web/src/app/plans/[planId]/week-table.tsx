@@ -45,6 +45,7 @@ function applyMove(entries: PlanEntry[], move: Move): PlanEntry[] {
           position: Number.MAX_SAFE_INTEGER,
           servings: null,
           note: null,
+          ingredients: [],
           created_at: "",
         },
       ];
@@ -225,6 +226,11 @@ export function WeekTable({ planId, days, todayDate, entries: savedEntries, edit
                             )}
                             {e.servings && <span className="badge">für {formatServings(e.servings)}</span>}
                             {e.note && <p className="entry-note">{e.note}</p>}
+                            {(e.ingredients ?? []).length > 0 && (
+                              <p className="entry-ingredients" title={e.ingredients.join("\n")}>
+                                {e.ingredients.join(" · ")}
+                              </p>
+                            )}
                           </div>
                           {editable && !e.id.startsWith("temp-") && (
                             <EditEntryButton title={e.title}>
@@ -252,6 +258,16 @@ export function WeekTable({ planId, days, todayDate, entries: savedEntries, edit
                                 <label className="field">
                                   <span>Notiz</span>
                                   <input type="text" name="note" maxLength={500} defaultValue={e.note ?? ""} placeholder="nur im Wochenplan sichtbar" />
+                                </label>
+                                <label className="field">
+                                  <span>Zutaten</span>
+                                  <textarea
+                                    name="ingredients"
+                                    rows={3}
+                                    defaultValue={(e.ingredients ?? []).join("\n")}
+                                    placeholder={"z. B. 2 Baguettes\nSenf"}
+                                  />
+                                  <span className="hint">Eine pro Zeile; kommen mit auf die Einkaufsliste.</span>
                                 </label>
                                 <div className="toolbar">
                                   <button type="submit">Speichern</button>

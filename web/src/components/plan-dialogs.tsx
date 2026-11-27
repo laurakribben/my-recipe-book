@@ -126,6 +126,13 @@ export function AddEntryDialog({
             <input type="text" name="note" maxLength={500} placeholder="z. B. Tofu statt Hähnchen" />
           </label>
         </div>
+        <label className="field">
+          <span>Zutaten (optional)</span>
+          <textarea name="ingredients" rows={3} placeholder={"z. B. 6 Würstchen\n2 Baguettes\nSenf"} />
+          <span className="hint">
+            Eine pro Zeile – z. B. für einen freien Eintrag oder Extras zum Rezept. Sie kommen mit auf die Einkaufsliste.
+          </span>
+        </label>
         <button type="submit">Hinzufügen</button>
       </form>
     </Dialog>

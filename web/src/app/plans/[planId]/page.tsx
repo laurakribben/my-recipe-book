@@ -55,7 +55,7 @@ export default async function PlanWeekPage(props: Props) {
   const supabase = await createClient();
   const { data: entryRows } = await supabase
     .from("meal_plan_entries")
-    .select("id, plan_id, day, meal, position, recipe_id, title, servings, note, created_at")
+    .select("id, plan_id, day, meal, position, recipe_id, title, servings, note, ingredients, created_at")
     .eq("plan_id", plan.id)
     .gte("day", days[0])
     .lte("day", days[6])
@@ -220,7 +220,7 @@ export default async function PlanWeekPage(props: Props) {
         </Link>
       </nav>
 
-      {editable && entries.some((e) => e.recipe_id) && (
+      {editable && entries.some((e) => e.recipe_id || (e.ingredients ?? []).length > 0) && (
         <form action={addWeekToShopping.bind(null, plan.id, weekStart)}>
           <button type="submit" className="secondary">
             Einkaufsliste für diese Woche

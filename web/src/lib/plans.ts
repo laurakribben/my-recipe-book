@@ -25,6 +25,8 @@ export type PlanEntry = {
   title: string;
   servings: number | null;
   note: string | null;
+  /** Typed-in ingredients (besides the recipe's), one per item. */
+  ingredients: string[];
   created_at: string;
 };
 

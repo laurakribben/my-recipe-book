@@ -43,6 +43,15 @@ function parseMeal(value: FormDataEntryValue | null): Meal {
   return isMeal(value) ? value : "abends";
 }
 
+/** Typed-in ingredients: one per line, at most 50, bullets and blank lines dropped. */
+function parseIngredientLines(value: FormDataEntryValue | null): string[] {
+  return String(value ?? "")
+    .split("\n")
+    .map((l) => l.trim().replace(/^[-*•]\s+/, "").slice(0, 200))
+    .filter(Boolean)
+    .slice(0, 50);
+}
+
 function parseServingsField(value: FormDataEntryValue | null): number | null {
   const n = Number(String(value ?? "").replace(",", "."));
   return Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 100) / 100 : null;
@@ -76,6 +85,7 @@ export async function addEntry(planId: string, formData: FormData) {
     title,
     servings: parseServingsField(formData.get("servings")),
     note: String(formData.get("note") ?? "").trim().slice(0, 500) || null,
+    ingredients: parseIngredientLines(formData.get("ingredients")),
     created_by: user.id,
   });
   if (error) console.error("Adding a plan entry failed", { code: error.code, message: error.message });
@@ -97,6 +107,7 @@ export async function updateEntry(planId: string, entryId: string, formData: For
       meal: parseMeal(formData.get("meal")),
       servings: parseServingsField(formData.get("servings")),
       note: String(formData.get("note") ?? "").trim().slice(0, 500) || null,
+      ingredients: parseIngredientLines(formData.get("ingredients")),
     })
     .eq("id", entryId)
     .eq("plan_id", planId);
@@ -109,6 +120,7 @@ export type EntrySnapshot = {
   day: string;
   meal: string;
   position: number;
+  ingredients: string[];
   recipe_id: string | null;
   title: string;
   servings: number | null;
@@ -125,7 +137,7 @@ export async function deleteEntry(planId: string, entryId: string): Promise<Entr
     .delete()
     .eq("id", entryId)
     .eq("plan_id", planId)
-    .select("id, day, meal, position, recipe_id, title, servings, note")
+    .select("id, day, meal, position, recipe_id, title, servings, note, ingredients")
     .maybeSingle();
   revalidatePath(`/plans/${planId}`);
   return (data as EntrySnapshot | null) ?? null;
@@ -145,6 +157,9 @@ export async function restoreEntry(planId: string, snapshot: EntrySnapshot) {
     title: String(snapshot.title).slice(0, 200),
     servings: parseServingsField(String(snapshot.servings ?? "")),
     note: snapshot.note ? String(snapshot.note).slice(0, 500) : null,
+    ingredients: Array.isArray(snapshot.ingredients)
+      ? snapshot.ingredients.map((i) => String(i).slice(0, 200)).slice(0, 50)
+      : [],
     created_by: user.id,
   });
   revalidatePath(`/plans/${planId}`);
@@ -164,30 +179,50 @@ export async function addWeekToShopping(planId: string, weekStart: string) {
 
   const { data: entries } = await supabase
     .from("meal_plan_entries")
-    .select("id, day, recipe_id, title, servings")
+    .select("id, day, recipe_id, title, servings, ingredients")
     .eq("plan_id", planId)
     .gte("day", weekStart)
     .lte("day", addDays(weekStart, 6))
-    .not("recipe_id", "is", null)
     .order("day");
   const { data: existing } = await supabase.from("shopping_items").select("entry_id").eq("plan_id", planId);
   const done = new Set((existing ?? []).map((i) => i.entry_id).filter(Boolean));
-  const todo = (entries ?? []).filter((e) => !done.has(e.id));
+  // Entries with something to buy: a recipe and/or typed-in ingredients.
+  const withItems = (entries ?? []).filter((e) => e.recipe_id || (e.ingredients ?? []).length > 0);
+  const todo = withItems.filter((e) => !done.has(e.id));
 
   if (todo.length === 0) {
-    redirect(shoppingUrl(planId, (entries ?? []).length ? "Die Rezepte dieser Woche stehen schon auf der Liste." : "In dieser Woche sind keine Rezepte geplant."));
+    redirect(
+      shoppingUrl(
+        planId,
+        withItems.length
+          ? "Die Gerichte dieser Woche stehen schon auf der Liste."
+          : "In dieser Woche sind keine Rezepte oder Zutaten geplant.",
+      ),
+    );
   }
 
   // RLS: recipes the user can't see (e.g. in a book that isn't shared with them) are skipped.
   const { data: recipes } = await supabase
     .from("recipes")
     .select("id, title, servings, ingredients")
-    .in("id", todo.map((e) => e.recipe_id));
+    .in("id", todo.map((e) => e.recipe_id).filter(Boolean));
   const byId = new Map((recipes ?? []).map((r) => [r.id, r as Pick<Recipe, "id" | "title" | "servings" | "ingredients">]));
 
   const rows = [];
   let skipped = 0;
   for (const entry of todo) {
+    const weekday = formatDay(entry.day).split(",")[0];
+    // Typed-in ingredients go on the list as written.
+    for (const item of (entry.ingredients ?? []) as string[]) {
+      rows.push({
+        plan_id: planId,
+        text: item.slice(0, 300),
+        entry_id: entry.id,
+        source: `${entry.title} (${weekday})`.slice(0, 200),
+        created_by: user.id,
+      });
+    }
+    if (!entry.recipe_id) continue;
     const recipe = byId.get(entry.recipe_id);
     if (!recipe) {
       skipped++;
@@ -195,7 +230,6 @@ export async function addWeekToShopping(planId: string, weekStart: string) {
     }
     const base = parseServings(recipe.servings);
     const factor = base && entry.servings ? entry.servings / base : 1;
-    const weekday = formatDay(entry.day).split(",")[0];
     for (const group of recipe.ingredients) {
       for (const item of group.items) {
         rows.push({
@@ -218,11 +252,11 @@ export async function addWeekToShopping(planId: string, weekStart: string) {
     }
   }
   revalidatePath(`/plans/${planId}/einkauf`);
-  const recipesAdded = todo.length - skipped;
+  const dishesAdded = todo.length - skipped;
   redirect(
     shoppingUrl(
       planId,
-      `${rows.length} Zutaten aus ${recipesAdded} ${recipesAdded === 1 ? "Rezept" : "Rezepten"} übernommen.` +
+      `${rows.length} Zutaten aus ${dishesAdded} ${dishesAdded === 1 ? "Gericht" : "Gerichten"} übernommen.` +
         (skipped ? ` ${skipped} Rezept(e) übersprungen, weil du keinen Zugriff darauf hast.` : ""),
     ),
   );
