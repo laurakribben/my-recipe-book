@@ -21,7 +21,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
 ### 1. Supabase
 
 1. Create a free project at supabase.com.
-2. **SQL Editor** → New query → paste `supabase/migrations/0001_init.sql` → **Run**.
+2. **SQL Editor** → New query → paste `supabase/migrations/0001_init.sql` → **Run**. Then the same
+   with `supabase/migrations/0002_grants.sql`.
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address
@@ -82,6 +83,9 @@ insert into public.profiles (id, email)
 select id, lower(email) from auth.users
 on conflict (id) do nothing;
 ```
+
+**Database error 42501 (access denied) for every action.** The app's database roles lack table
+permissions. Run `supabase/migrations/0002_grants.sql` in the SQL Editor.
 
 **"Invalid path specified in request URL".** `NEXT_PUBLIC_SUPABASE_URL` must be only the project
 address (`https://abcd.supabase.co`), without `/rest/v1/`. The app strips a path since then.
