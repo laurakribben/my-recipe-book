@@ -832,3 +832,14 @@ html { scroll-padding-top: calc(var(--header-height) + 0.5rem); }
   .meter-range { display: none; } /* the green band shows the target range */
   .meters { gap: 0.35rem; }
 }
+
+/* ---------------------------------------------------------------- loading placeholder */
+
+.page-loading { padding-top: 1.5rem; }
+.skeleton { border-radius: 8px; background: color-mix(in srgb, var(--line) 70%, transparent); animation: skeleton-pulse 1.2s ease-in-out infinite; }
+.skeleton-title { height: 2.2rem; width: 55%; max-width: 24rem; margin-bottom: 1rem; }
+.skeleton-line { height: 1rem; margin-bottom: 1.5rem; max-width: 18rem; }
+.skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 1rem; }
+.skeleton-card { aspect-ratio: 4 / 3; }
+@keyframes skeleton-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }

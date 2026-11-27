@@ -29,11 +29,14 @@ export default async function HomePage(props: { searchParams: Promise<{ error?: 
   }
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("book_members")
-    .select("role, books (id, name, owner_id, created_at)")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true });
+  const [{ data }, plans] = await Promise.all([
+    supabase
+      .from("book_members")
+      .select("role, books (id, name, owner_id, created_at)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true }),
+    getMyPlans(user.id),
+  ]);
 
   const books = (data ?? [])
     .filter((m) => m.books)
@@ -43,36 +46,36 @@ export default async function HomePage(props: { searchParams: Promise<{ error?: 
     }));
 
   // "Heute": dishes planned for today in all of the user's plans, and this week's noted recipes.
-  const plans = await getMyPlans(user.id);
   const todayDate = today();
-  const { data: todayRows } = plans.length
-    ? await supabase
-        .from("meal_plan_entries")
-        .select("id, plan_id, meal, recipe_id, title, servings, note")
-        .in(
-          "plan_id",
-          plans.map((p) => p.id),
-        )
-        .eq("day", todayDate)
-        .order("position")
-        .order("created_at")
-    : { data: [] };
-  const mealOrder = (meal: string) => MEALS.findIndex((m) => m.id === meal);
-  const todayEntries = (
-    (todayRows ?? []) as Pick<PlanEntry, "id" | "plan_id" | "meal" | "recipe_id" | "title" | "servings" | "note">[]
-  ).sort((a, b) => mealOrder(a.meal) - mealOrder(b.meal));
   const ownPlan = plans.find((p) => p.role === "owner") ?? plans[0];
   const nextWeek = ownPlan ? addDays(weekStartOf(todayDate, ownPlan.week_start), 7) : null;
-  const { data: ideaRows } =
+  const [{ data: todayRows }, { data: ideaRows }] = await Promise.all([
+    plans.length
+      ? supabase
+          .from("meal_plan_entries")
+          .select("id, plan_id, meal, recipe_id, title, servings, note")
+          .in(
+            "plan_id",
+            plans.map((p) => p.id),
+          )
+          .eq("day", todayDate)
+          .order("position")
+          .order("created_at")
+      : { data: [] },
     ownPlan && nextWeek
-      ? await supabase
+      ? supabase
           .from("meal_plan_ideas")
           .select("id, recipe_id, title")
           .eq("plan_id", ownPlan.id)
           .lt("week", nextWeek)
           .order("created_at")
           .limit(6)
-      : { data: [] };
+      : { data: [] },
+  ]);
+  const mealOrder = (meal: string) => MEALS.findIndex((m) => m.id === meal);
+  const todayEntries = (
+    (todayRows ?? []) as Pick<PlanEntry, "id" | "plan_id" | "meal" | "recipe_id" | "title" | "servings" | "note">[]
+  ).sort((a, b) => mealOrder(a.meal) - mealOrder(b.meal));
   const ideas = ideaRows ?? [];
 
   if (books.length === 0) {

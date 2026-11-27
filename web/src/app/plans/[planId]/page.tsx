@@ -57,18 +57,41 @@ export default async function PlanWeekPage(props: Props) {
   const days = weekDays(weekStart);
 
   const supabase = await createClient();
-  const { data: entryRows } = await supabase
-    .from("meal_plan_entries")
-    .select("id, plan_id, day, meal, position, recipe_id, title, servings, note, ingredients, created_at")
-    .eq("plan_id", plan.id)
-    .gte("day", days[0])
-    .lte("day", days[6])
-    .order("position")
-    .order("created_at");
+
+  // Recipes the user can plan: those in their own and shared books, grouped by book. (Without
+  // the book filter, public recipes of other people's books would show up too.)
+  async function plannableRecipes() {
+    if (!editable) return [];
+    const { data: memberships } = await supabase.from("book_members").select("book_id").eq("user_id", user.id);
+    const bookIds = (memberships ?? []).map((m) => m.book_id);
+    if (bookIds.length === 0) return [];
+    const { data } = await supabase
+      .from("recipes")
+      .select("id, title, book_id, books (name)")
+      .in("book_id", bookIds)
+      .order("title")
+      .limit(1000);
+    return data ?? [];
+  }
+
+  // Independent queries run at the same time: each one is a round trip to the database.
+  const [{ data: entryRows }, profile, { data: ideaRows }, recipeRows, plans] = await Promise.all([
+    supabase
+      .from("meal_plan_entries")
+      .select("id, plan_id, day, meal, position, recipe_id, title, servings, note, ingredients, created_at")
+      .eq("plan_id", plan.id)
+      .gte("day", days[0])
+      .lte("day", days[6])
+      .order("position")
+      .order("created_at"),
+    getProfile(),
+    supabase.from("meal_plan_ideas").select("id, recipe_id, title, week, created_at").eq("plan_id", plan.id).order("created_at"),
+    plannableRecipes(),
+    getMyPlans(user.id),
+  ]);
   const entries = (entryRows ?? []) as PlanEntry[];
 
   // Nutrition balance per day and for the week (personal setting, on by default).
-  const profile = await getProfile();
   const showBalance = profile?.showNutritionBalance ?? true;
   const recipeIds = [...new Set(entries.map((e) => e.recipe_id).filter((id): id is string => Boolean(id)))];
   const { data: nutritionRows } =
@@ -88,37 +111,18 @@ export default async function PlanWeekPage(props: Props) {
 
   // Idea lists: everything up to this week is "Diese Woche" (left-overs included), later is "Nächste Woche".
   const nextWeek = addDays(thisWeek, 7);
-  const { data: ideaRows } = await supabase
-    .from("meal_plan_ideas")
-    .select("id, recipe_id, title, week, created_at")
-    .eq("plan_id", plan.id)
-    .order("created_at");
   const ideas = (ideaRows ?? []) as PlanIdea[];
   const ideaLists: { list: IdeaList; title: string; start: string; items: PlanIdea[] }[] = [
     { list: "this", title: "Diese Woche", start: thisWeek, items: ideas.filter((i) => i.week < nextWeek) },
     { list: "next", title: "Nächste Woche", start: nextWeek, items: ideas.filter((i) => i.week >= nextWeek) },
   ];
 
-  // Recipes the user can plan: those in their own and shared books, grouped by book. (Without
-  // the book filter, public recipes of other people's books would show up too.)
-  const { data: memberships } = await supabase.from("book_members").select("book_id").eq("user_id", user.id);
-  const bookIds = (memberships ?? []).map((m) => m.book_id);
-  const { data: recipeRows } =
-    editable && bookIds.length > 0
-      ? await supabase
-          .from("recipes")
-          .select("id, title, book_id, books (name)")
-          .in("book_id", bookIds)
-          .order("title")
-          .limit(1000)
-      : { data: [] };
   const byBook = new Map<string, { id: string; title: string }[]>();
-  for (const r of recipeRows ?? []) {
+  for (const r of recipeRows) {
     const book = (r.books as unknown as { name: string } | null)?.name ?? "Rezepte";
     if (!byBook.has(book)) byBook.set(book, []);
     byBook.get(book)!.push({ id: r.id, title: r.title });
   }
-  const plans = await getMyPlans(user.id);
 
   return (
     <>

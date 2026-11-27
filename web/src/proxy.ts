@@ -27,10 +27,10 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Must be called right after creating the client: it refreshes expired sessions.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Must be called right after creating the client: it refreshes expired sessions. getClaims
+  // checks the token's signature locally (signing keys), so it doesn't wait for Supabase Auth.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ?? null;
 
   if (!user && (request.nextUrl.pathname.startsWith("/books") || request.nextUrl.pathname.startsWith("/plans"))) {
     const url = request.nextUrl.clone();

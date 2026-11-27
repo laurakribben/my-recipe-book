@@ -36,9 +36,9 @@ export default async function RecipePage(props: Props) {
   const { portionen, geplant, gemerkt } = await props.searchParams;
   const recipe = await loadRecipe(recipeId);
   if (!recipe) notFound();
-  const access = await getBookForUser(recipe.book_id);
   const user = await getUser();
-  const plans = user ? (await getMyPlans(user.id)).filter((p) => canEdit(p.role)) : [];
+  const [access, myPlans] = await Promise.all([getBookForUser(recipe.book_id), user ? getMyPlans(user.id) : []]);
+  const plans = myPlans.filter((p) => canEdit(p.role));
   const base = parseServings(recipe.servings);
   const plannedServings = Number(portionen);
 
