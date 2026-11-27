@@ -92,11 +92,6 @@ export default async function RecipePage(props: Props) {
           Eingeplant für {formatDay(geplant)}. <Link href={`/plans?woche=${geplant}`}>Zum Wochenplan</Link>
         </p>
       )}
-      {access && (
-        <p>
-          <span className="badge">{recipe.visibility === "public" ? "öffentlich" : "privat"}</span>
-        </p>
-      )}
       <div className="toolbar">
         <Link href={`/recipes/${recipe.id}/cook`} className="button">
           Kochmodus
