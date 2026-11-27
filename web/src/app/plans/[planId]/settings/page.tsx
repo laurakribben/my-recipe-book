@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ConfirmButton } from "@/components/confirm-button";
 import { notFound } from "next/navigation";
 import { getPlanForUser, WEEKDAY_NAMES } from "@/lib/plans";
+import { getProfile } from "@/lib/profile";
 import { ROLE_LABELS, type BookRole } from "@/lib/recipe";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -10,6 +11,7 @@ import {
   leavePlan,
   removePlanMember,
   renamePlan,
+  setNutritionBalance,
   setWeekStart,
   sharePlan,
   withdrawPlanInvite,
@@ -26,6 +28,7 @@ export default async function PlanSettingsPage(props: Props) {
   if (!access) notFound();
   const { plan, role, user } = access;
   const isOwner = role === "owner";
+  const showBalance = (await getProfile())?.showNutritionBalance ?? true;
 
   const supabase = await createClient();
   const { data: members } = await supabase
@@ -129,6 +132,20 @@ export default async function PlanSettingsPage(props: Props) {
           </tbody>
         </table>
       </div>
+
+      <h2 id="anzeige">Anzeige</h2>
+      <form action={setNutritionBalance.bind(null, plan.id)} className="stack">
+        <label className="row">
+          <input type="checkbox" name="show_nutrition_balance" defaultChecked={showBalance} />
+          Nährwert-Bilanz anzeigen (Verhältnis von Kohlenhydraten, Fett, Eiweiß und Zucker pro Tag und Woche)
+        </label>
+        <p className="hint">Gilt nur für dich – andere Mitglieder entscheiden selbst.</p>
+        <div>
+          <button type="submit" className="secondary">
+            Speichern
+          </button>
+        </div>
+      </form>
 
       {isOwner ? (
         <>

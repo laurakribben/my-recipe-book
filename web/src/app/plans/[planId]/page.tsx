@@ -22,6 +22,9 @@ import { SettingsIcon, ShareIcon } from "@/components/icons";
 import { AddEntryDialog } from "@/components/plan-dialogs";
 import { DraggableIdea } from "./draggable-idea";
 import { WeekTable } from "./week-table";
+import { WeekBalance } from "@/components/balance-view";
+import { computeBalance } from "@/lib/balance";
+import { getProfile } from "@/lib/profile";
 import {
   addEntry,
   addWeekToShopping,
@@ -63,6 +66,25 @@ export default async function PlanWeekPage(props: Props) {
     .order("position")
     .order("created_at");
   const entries = (entryRows ?? []) as PlanEntry[];
+
+  // Nutrition balance per day and for the week (personal setting, on by default).
+  const profile = await getProfile();
+  const showBalance = profile?.showNutritionBalance ?? true;
+  const recipeIds = [...new Set(entries.map((e) => e.recipe_id).filter((id): id is string => Boolean(id)))];
+  const { data: nutritionRows } =
+    showBalance && recipeIds.length > 0
+      ? await supabase.from("recipes").select("id, nutrition, servings").in("id", recipeIds)
+      : { data: [] };
+  const nutritionById = new Map((nutritionRows ?? []).map((r) => [r.id, r]));
+  const balanceItems = (list: PlanEntry[]) =>
+    list.map((e) => {
+      const r = e.recipe_id ? nutritionById.get(e.recipe_id) : undefined;
+      return { nutrition: r?.nutrition ?? null, servings: r?.servings ?? null };
+    });
+  const dayBalances = showBalance
+    ? Object.fromEntries(days.map((d) => [d, computeBalance(balanceItems(entries.filter((e) => e.day === d)))]))
+    : null;
+  const weekBalance = showBalance ? computeBalance(balanceItems(entries)) : null;
 
   // Idea lists: everything up to this week is "Diese Woche" (left-overs included), later is "Nächste Woche".
   const nextWeek = addDays(thisWeek, 7);
@@ -266,7 +288,15 @@ export default async function PlanWeekPage(props: Props) {
           andere Mahlzeit ziehen.
         </p>
       )}
-      <WeekTable planId={plan.id} days={days} todayDate={todayDate} entries={entries} editable={editable} />
+      {weekBalance && <WeekBalance balance={weekBalance} />}
+      <WeekTable
+        planId={plan.id}
+        days={days}
+        todayDate={todayDate}
+        entries={entries}
+        editable={editable}
+        dayBalances={dayBalances}
+      />
     </>
   );
 }

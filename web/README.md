@@ -45,6 +45,10 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
   taken from the source when it has them, otherwise estimated by the AI and labelled as such.
   Shown under the ingredients; editable in the form; "Fehlendes ergänzen" estimates them for
   older recipes (`src/lib/nutrition.ts`, `src/lib/nutrition-ai.ts`).
+- Nutrition balance in the meal plan (`src/lib/balance.ts`): share of energy from carbs, fat,
+  protein and sugar per day (status + thin bar under the date, figures on hover) and for the week
+  (meters with the DGE/WHO target ranges). No calorie totals. Each person can turn it off in the
+  plan settings ("Anzeige").
 - Each user can run 30 AI extractions per 24 hours (`AI_DAILY_LIMIT`), to keep costs predictable.
 
 ## Setup (once)
@@ -63,7 +67,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
    `supabase/migrations/0009_meal_slots.sql` (Morgens/Mittags/Abends/Snack in the meal plan) and
    `supabase/migrations/0010_entry_position.sql` (order of entries within a cell) and
    `supabase/migrations/0011_entry_ingredients.sql` (ingredients typed in for plan entries) and
-   `supabase/migrations/0012_nutrition.sql` (nutrition facts of recipes).
+   `supabase/migrations/0012_nutrition.sql` (nutrition facts of recipes) and
+   `supabase/migrations/0013_balance_setting.sql` (personal switch for the nutrition balance).
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address

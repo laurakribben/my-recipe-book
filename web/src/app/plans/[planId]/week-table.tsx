@@ -5,6 +5,8 @@ import { useOptimistic, useState, useTransition, type DragEvent } from "react";
 import { AddEntryButton, EditEntryButton } from "@/components/plan-dialogs";
 import { showToast, UndoableRemove } from "@/components/toast";
 import type { PlanEntry } from "@/lib/plans";
+import type { Balance } from "@/lib/balance";
+import { DayBalance } from "@/components/balance-view";
 import { formatDay, MEALS, type Meal } from "@/lib/week";
 import { deleteEntry, moveCell, placeEntry, planIdeaAt, restoreEntry, updateEntry } from "../actions";
 
@@ -71,14 +73,22 @@ function formatServings(n: number) {
   return n.toLocaleString("de-DE", { maximumFractionDigits: 2 });
 }
 
-type Props = { planId: string; days: string[]; todayDate: string; entries: PlanEntry[]; editable: boolean };
+type Props = {
+  planId: string;
+  days: string[];
+  todayDate: string;
+  entries: PlanEntry[];
+  editable: boolean;
+  /** Nutrition balance per day, or null when the person turned it off. */
+  dayBalances?: Record<string, Balance> | null;
+};
 
 /**
  * The week: days × meals. A table on wide screens, a list on phones (see globals.css).
  * Editors can drag entries, whole cells and noted recipes onto other cells; the change
  * shows at once and is saved in the background.
  */
-export function WeekTable({ planId, days, todayDate, entries: savedEntries, editable }: Props) {
+export function WeekTable({ planId, days, todayDate, entries: savedEntries, editable, dayBalances }: Props) {
   const [entries, applyOptimistic] = useOptimistic(savedEntries, applyMove);
   const [, startTransition] = useTransition();
   const [over, setOver] = useState<string | null>(null);
@@ -144,11 +154,14 @@ export function WeekTable({ planId, days, todayDate, entries: savedEntries, edit
             className={day === todayDate ? "week-day today" : "week-day"}
             style={{ "--col": d + 2 } as React.CSSProperties}
           >
-            <h2 className="day-head">
-              <span className="dh-weekday">{formatDay(day).split(", ")[0]}</span>
-              <span className="dh-date">{formatDay(day).split(", ")[1]}</span>
-              {day === todayDate && <span className="badge">heute</span>}
-            </h2>
+            <div className="day-head">
+              <h2>
+                <span className="dh-weekday">{formatDay(day).split(", ")[0]}</span>
+                <span className="dh-date">{formatDay(day).split(", ")[1]}</span>
+                {day === todayDate && <span className="badge">heute</span>}
+              </h2>
+              {dayBalances?.[day] && <DayBalance balance={dayBalances[day]} />}
+            </div>
             {MEALS.map((meal, m) => {
               const cellEntries = cellOf(entries, day, meal.id);
               return (

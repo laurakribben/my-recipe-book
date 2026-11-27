@@ -530,6 +530,16 @@ export async function planIdea(planId: string, ideaId: string, formData: FormDat
   redirect(`${weekUrl(planId, day)}#tag-${day}`);
 }
 
+/** Personal setting (each member decides): show the nutrition balance in the meal plan. */
+export async function setNutritionBalance(planId: string, formData: FormData) {
+  const { user } = (await getPlanForUser(planId)) ?? redirect("/plans");
+  const show = formData.get("show_nutrition_balance") === "on";
+  const supabase = await createClient();
+  await supabase.from("profiles").update({ show_nutrition_balance: show }).eq("id", user.id);
+  revalidatePath("/plans", "layout");
+  redirect(settingsUrl(planId, show ? "Nährwert-Bilanz wird angezeigt." : "Nährwert-Bilanz ausgeblendet."));
+}
+
 export async function setWeekStart(planId: string, formData: FormData) {
   await requireOwner(planId);
   const value = Number(formData.get("week_start"));
