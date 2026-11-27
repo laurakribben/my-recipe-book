@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TabBar } from "@/components/tab-bar";
+import { Toaster } from "@/components/toast";
 import { getUser } from "@/lib/supabase/server";
 import "./globals.css";
 
@@ -13,17 +15,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="de">
-      <body>
+      <body className={user ? "has-tabbar" : undefined}>
         <header className="site-header">
           <Link href="/" className="brand">
             Mein Rezeptbuch
           </Link>
           <nav className="row">
             {user && (
-              <>
-                <Link href="/">Rezeptbücher</Link>
+              <span className="desktop-nav">
+                <Link href="/">Start</Link>
+                <Link href="/suche">Suche</Link>
                 <Link href="/plans">Wochenplan</Link>
-              </>
+                <Link href="/einkauf">Einkauf</Link>
+              </span>
             )}
             {user ? (
               <form action="/auth/signout" method="post">
@@ -38,6 +42,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </nav>
         </header>
         <main>{children}</main>
+        <Toaster />
+        {user && <TabBar />}
       </body>
     </html>
   );

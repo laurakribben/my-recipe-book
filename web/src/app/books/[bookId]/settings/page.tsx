@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ConfirmButton } from "@/components/confirm-button";
 import { notFound } from "next/navigation";
 import { getBookForUser } from "@/lib/books";
 import { ROLE_LABELS, type BookRole } from "@/lib/recipe";
@@ -154,9 +155,7 @@ export default async function BookSettingsPage(props: Props) {
         </>
       ) : (
         <form action={leaveBook.bind(null, book.id)} style={{ marginTop: "2rem" }}>
-          <button type="submit" className="danger">
-            Buch verlassen
-          </button>
+          <ConfirmButton label="Buch verlassen" question="Buch wirklich verlassen?" confirmLabel="Ja, verlassen" />
         </form>
       )}
     </>

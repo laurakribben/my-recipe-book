@@ -16,6 +16,7 @@ import {
   type PlanIdea,
 } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
+import { UndoableRemove } from "@/components/toast";
 import {
   addEntry,
   addWeekToShopping,
@@ -23,6 +24,8 @@ import {
   deleteIdea,
   moveIdea,
   planIdea,
+  restoreEntry,
+  restoreIdea,
   updateEntry,
   type IdeaList,
 } from "../actions";
@@ -168,11 +171,11 @@ export default async function PlanWeekPage(props: Props) {
                             {list === "this" ? "→ Nächste Woche" : "← Diese Woche"}
                           </button>
                         </form>
-                        <form action={deleteIdea.bind(null, plan.id, idea.id)}>
-                          <button type="submit" className="danger btn-small">
-                            Entfernen
-                          </button>
-                        </form>
+                        <UndoableRemove
+                          remove={deleteIdea.bind(null, plan.id, idea.id)}
+                          restore={restoreIdea.bind(null, plan.id)}
+                          message={`„${idea.title}“ entfernt.`}
+                        />
                       </div>
                     </details>
                   )}
@@ -217,6 +220,18 @@ export default async function PlanWeekPage(props: Props) {
         </form>
       )}
 
+      {entries.length === 0 && editable && (
+        <div className="card empty-state">
+          <p style={{ marginTop: 0 }}>
+            <strong>Diese Woche ist noch leer.</strong>
+          </p>
+          <p className="hint" style={{ marginBottom: 0 }}>
+            Tippe bei einem Tag auf „Gericht hinzufügen“, oder merke Rezepte auf der Rezeptseite mit „Merken für: Diese
+            Woche“ vor und plane sie oben ein. Aus den geplanten Rezepten entsteht mit einem Tipp die Einkaufsliste.
+          </p>
+        </div>
+      )}
+
       <div className="week">
         {days.map((day) => {
           const dayEntries = entries.filter((e) => e.day === day);
@@ -257,11 +272,13 @@ export default async function PlanWeekPage(props: Props) {
                             <button type="submit">Speichern</button>
                           </div>
                         </form>
-                        <form action={deleteEntry.bind(null, plan.id, e.id, e.day)} style={{ marginTop: "0.5rem" }}>
-                          <button type="submit" className="danger btn-small">
-                            Entfernen
-                          </button>
-                        </form>
+                        <div style={{ marginTop: "0.5rem" }}>
+                          <UndoableRemove
+                            remove={deleteEntry.bind(null, plan.id, e.id)}
+                            restore={restoreEntry.bind(null, plan.id)}
+                            message={`„${e.title}“ aus dem Plan entfernt.`}
+                          />
+                        </div>
                       </details>
                     )}
                   </li>

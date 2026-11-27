@@ -7,6 +7,7 @@ import { recipeToDraft, type Recipe } from "@/lib/recipe";
 import { createClient } from "@/lib/supabase/server";
 import { completionStatus } from "@/lib/recipe-completion";
 import { completeRecipeAction, deleteRecipe, updateRecipe } from "../../actions";
+import { ConfirmButton } from "@/components/confirm-button";
 import { CompletionPanel } from "./completion-panel";
 
 export const metadata: Metadata = { title: "Rezept bearbeiten" };
@@ -39,9 +40,7 @@ export default async function EditRecipePage(props: { params: Promise<{ recipeId
 
       <h2>Rezept löschen</h2>
       <form action={deleteRecipe.bind(null, recipe.id, recipe.book_id)}>
-        <button type="submit" className="danger">
-          Rezept löschen
-        </button>
+        <ConfirmButton label="Rezept löschen" question="Rezept wirklich löschen?" confirmLabel="Ja, löschen" />
       </form>
     </>
   );

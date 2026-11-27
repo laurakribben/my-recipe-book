@@ -28,6 +28,7 @@ export type ShoppingItem = {
   checked: boolean;
   entry_id: string | null;
   source: string | null;
+  aisle: string | null;
   created_at: string;
 };
 

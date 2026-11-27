@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ConfirmButton } from "@/components/confirm-button";
 import { notFound } from "next/navigation";
 import { getPlanForUser, WEEKDAY_NAMES } from "@/lib/plans";
 import { ROLE_LABELS, type BookRole } from "@/lib/recipe";
@@ -157,9 +158,7 @@ export default async function PlanSettingsPage(props: Props) {
         </>
       ) : (
         <form action={leavePlan.bind(null, plan.id)} style={{ marginTop: "2rem" }}>
-          <button type="submit" className="danger">
-            Plan verlassen
-          </button>
+          <ConfirmButton label="Plan verlassen" question="Plan wirklich verlassen?" confirmLabel="Ja, verlassen" />
         </form>
       )}
     </>

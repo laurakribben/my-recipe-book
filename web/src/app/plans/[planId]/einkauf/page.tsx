@@ -4,7 +4,14 @@ import { notFound } from "next/navigation";
 import { canEdit } from "@/lib/books";
 import { getPlanForUser, type ShoppingItem } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
-import { addShoppingItems, clearShoppingItems, deleteShoppingItem, setItemChecked } from "../../actions";
+import {
+  addShoppingItems,
+  clearShoppingItems,
+  deleteShoppingItem,
+  restoreShoppingItem,
+  setItemChecked,
+} from "../../actions";
+import { ConfirmButton } from "@/components/confirm-button";
 import { ShoppingList } from "./shopping-list";
 
 export const metadata: Metadata = { title: "Einkaufsliste" };
@@ -22,7 +29,7 @@ export default async function ShoppingPage(props: Props) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("shopping_items")
-    .select("id, text, checked, entry_id, source, created_at")
+    .select("id, text, checked, entry_id, source, aisle, created_at")
     .eq("plan_id", plan.id)
     .order("created_at");
   const items = (data ?? []) as ShoppingItem[];
@@ -41,6 +48,7 @@ export default async function ShoppingPage(props: Props) {
         editable={editable}
         setChecked={setItemChecked.bind(null, plan.id)}
         remove={deleteShoppingItem.bind(null, plan.id)}
+        restore={restoreShoppingItem.bind(null, plan.id)}
       />
 
       {editable && (
@@ -62,9 +70,7 @@ export default async function ShoppingPage(props: Props) {
                 </button>
               </form>
               <form action={clearShoppingItems.bind(null, plan.id, false)}>
-                <button type="submit" className="danger">
-                  Ganze Liste leeren
-                </button>
+                <ConfirmButton label="Ganze Liste leeren" question="Alle Einträge entfernen?" confirmLabel="Ja, leeren" />
               </form>
             </div>
           )}

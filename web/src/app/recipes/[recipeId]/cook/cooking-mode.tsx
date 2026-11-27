@@ -16,6 +16,8 @@ type Props = {
   ingredients: IngredientGroup[];
   /** Number of servings the amounts are written for, if known. */
   servingsBase: number | null;
+  /** Servings planned in the meal plan (?portionen=): applied once when cooking mode opens. */
+  initialServings?: number | null;
   steps: string[];
   /** Ingredients with amounts for each step, or null if not assigned yet. */
   stepIngredients: string[][] | null;
@@ -90,11 +92,17 @@ function CookingModeClient({
   imageUrl,
   ingredients: originalIngredients,
   servingsBase,
+  initialServings,
   steps,
   stepIngredients,
   assign,
 }: Props) {
   const [factor, setFactor] = useServingsFactor(recipeId);
+  useEffect(() => {
+    if (servingsBase && initialServings) setFactor(initialServings / servingsBase);
+    // Only when opening cooking mode, not on every change of the control.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipeId, servingsBase, initialServings]);
   const ingredients = scaleGroups(originalIngredients, factor);
   const total = steps.length + 1; // position 0 = ingredients, then one position per step
   const [saved] = useState(() => loadSaved(recipeId));

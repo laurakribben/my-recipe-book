@@ -53,7 +53,30 @@ export default async function BookPage(props: Props) {
       </form>
 
       {!recipes || recipes.length === 0 ? (
-        <p className="empty">{search ? "Keine Rezepte gefunden." : "Noch keine Rezepte in diesem Buch."}</p>
+        search ? (
+          <p className="empty">
+            Keine Rezepte gefunden. <Link href={`/suche?q=${encodeURIComponent(search)}`}>In allen Büchern suchen</Link>
+          </p>
+        ) : canEdit(role) ? (
+          <div className="card empty-state">
+            <p style={{ marginTop: 0 }}>
+              <strong>Noch keine Rezepte in diesem Buch.</strong> Füge dein erstes hinzu – die KI liest es für dich ein:
+            </p>
+            <div className="toolbar">
+              <Link href={`/books/${book.id}/new?quelle=link`} className="button">
+                Per Link
+              </Link>
+              <Link href={`/books/${book.id}/new?quelle=fotos`} className="button secondary">
+                Per Foto oder Screenshot
+              </Link>
+              <Link href={`/books/${book.id}/new?quelle=text`} className="button secondary">
+                Text einfügen
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <p className="empty">In diesem Buch sind noch keine Rezepte.</p>
+        )
       ) : (
         <ul className="recipe-grid">
           {recipes.map((r) => {

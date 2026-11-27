@@ -7,6 +7,7 @@ import { canEdit, isUuid } from "@/lib/books";
 import { addDays, formatDay, getPlanForUser, isIsoDate, today, weekStartOf } from "@/lib/plans";
 import type { Recipe } from "@/lib/recipe";
 import { parseServings, scaleIngredient } from "@/lib/servings";
+import { assignAisles } from "@/lib/aisles";
 import { shareWithEmail } from "@/lib/sharing";
 import { createClient } from "@/lib/supabase/server";
 
@@ -97,13 +98,46 @@ export async function updateEntry(planId: string, entryId: string, formData: For
   redirect(`${weekUrl(planId, day)}#tag-${day}`);
 }
 
-export async function deleteEntry(planId: string, entryId: string, day: string) {
+export type EntrySnapshot = {
+  id: string;
+  day: string;
+  recipe_id: string | null;
+  title: string;
+  servings: number | null;
+  note: string | null;
+};
+
+/** Removes a plan entry and returns it, so the "Rückgängig" toast can put it back. */
+export async function deleteEntry(planId: string, entryId: string): Promise<EntrySnapshot | null> {
   await requireEditor(planId);
-  if (!isUuid(entryId)) redirect(`/plans/${planId}`);
+  if (!isUuid(entryId)) return null;
   const supabase = await createClient();
-  await supabase.from("meal_plan_entries").delete().eq("id", entryId).eq("plan_id", planId);
+  const { data } = await supabase
+    .from("meal_plan_entries")
+    .delete()
+    .eq("id", entryId)
+    .eq("plan_id", planId)
+    .select("id, day, recipe_id, title, servings, note")
+    .maybeSingle();
   revalidatePath(`/plans/${planId}`);
-  redirect(isIsoDate(day) ? `${weekUrl(planId, day)}#tag-${day}` : `/plans/${planId}`);
+  return (data as EntrySnapshot | null) ?? null;
+}
+
+export async function restoreEntry(planId: string, snapshot: EntrySnapshot) {
+  const { user } = await requireEditor(planId);
+  if (!isUuid(snapshot.id) || !isIsoDate(snapshot.day) || (snapshot.recipe_id && !isUuid(snapshot.recipe_id))) return;
+  const supabase = await createClient();
+  await supabase.from("meal_plan_entries").insert({
+    id: snapshot.id,
+    plan_id: planId,
+    day: snapshot.day,
+    recipe_id: snapshot.recipe_id,
+    title: String(snapshot.title).slice(0, 200),
+    servings: parseServingsField(String(snapshot.servings ?? "")),
+    note: snapshot.note ? String(snapshot.note).slice(0, 500) : null,
+    created_by: user.id,
+  });
+  revalidatePath(`/plans/${planId}`);
 }
 
 // ---------------------------------------------------------------- shopping list
@@ -166,7 +200,8 @@ export async function addWeekToShopping(planId: string, weekStart: string) {
   }
 
   if (rows.length > 0) {
-    const { error } = await supabase.from("shopping_items").insert(rows);
+    const sorted = await withAisles(user.id, rows);
+    const { error } = await supabase.from("shopping_items").insert(sorted);
     if (error) {
       console.error("Adding to the shopping list failed", { code: error.code, message: error.message });
       redirect(shoppingUrl(planId, "Die Zutaten konnten nicht übernommen werden.", "error"));
@@ -183,6 +218,16 @@ export async function addWeekToShopping(planId: string, weekStart: string) {
   );
 }
 
+/** Lets the AI sort new shopping items into supermarket aisles (falls back to "Sonstiges"). */
+async function withAisles<T extends { text: string }>(userId: string, rows: T[]): Promise<(T & { aisle: string })[]> {
+  const { aisles, usage } = await assignAisles(rows.map((r) => r.text));
+  if (usage) {
+    const supabase = await createClient();
+    await supabase.from("ai_extractions").insert({ user_id: userId, ...usage });
+  }
+  return rows.map((r, i) => ({ ...r, aisle: aisles[i] }));
+}
+
 /** Adds own items; several lines become several items. */
 export async function addShoppingItems(planId: string, formData: FormData) {
   const { user } = await requireEditor(planId);
@@ -193,9 +238,11 @@ export async function addShoppingItems(planId: string, formData: FormData) {
     .slice(0, 50);
   if (lines.length > 0) {
     const supabase = await createClient();
-    await supabase
-      .from("shopping_items")
-      .insert(lines.map((text) => ({ plan_id: planId, text, created_by: user.id })));
+    const rows = await withAisles(
+      user.id,
+      lines.map((text) => ({ plan_id: planId, text, created_by: user.id })),
+    );
+    await supabase.from("shopping_items").insert(rows);
   }
   revalidatePath(`/plans/${planId}/einkauf`);
 }
@@ -209,11 +256,57 @@ export async function setItemChecked(planId: string, itemId: string, checked: bo
   revalidatePath(`/plans/${planId}/einkauf`);
 }
 
-export async function deleteShoppingItem(planId: string, itemId: string) {
+export type ShoppingSnapshot = {
+  id: string;
+  text: string;
+  checked: boolean;
+  entry_id: string | null;
+  source: string | null;
+  aisle: string | null;
+};
+
+/** Removes a shopping item and returns it, so the "Rückgängig" toast can put it back. */
+export async function deleteShoppingItem(planId: string, itemId: string): Promise<ShoppingSnapshot | null> {
   await requireEditor(planId);
-  if (!isUuid(itemId)) return;
+  if (!isUuid(itemId)) return null;
   const supabase = await createClient();
-  await supabase.from("shopping_items").delete().eq("id", itemId).eq("plan_id", planId);
+  const { data } = await supabase
+    .from("shopping_items")
+    .delete()
+    .eq("id", itemId)
+    .eq("plan_id", planId)
+    .select("id, text, checked, entry_id, source, aisle")
+    .maybeSingle();
+  revalidatePath(`/plans/${planId}/einkauf`);
+  return (data as ShoppingSnapshot | null) ?? null;
+}
+
+export async function restoreShoppingItem(planId: string, snapshot: ShoppingSnapshot) {
+  const { user } = await requireEditor(planId);
+  if (!isUuid(snapshot.id) || (snapshot.entry_id && !isUuid(snapshot.entry_id))) return;
+  const supabase = await createClient();
+  const { error } = await supabase.from("shopping_items").insert({
+    id: snapshot.id,
+    plan_id: planId,
+    text: String(snapshot.text).slice(0, 300),
+    checked: Boolean(snapshot.checked),
+    entry_id: snapshot.entry_id,
+    source: snapshot.source ? String(snapshot.source).slice(0, 200) : null,
+    aisle: snapshot.aisle ? String(snapshot.aisle).slice(0, 50) : null,
+    created_by: user.id,
+  });
+  // The plan entry it came from may be gone by now: restore without the link then.
+  if (error?.code === "23503") {
+    await supabase.from("shopping_items").insert({
+      id: snapshot.id,
+      plan_id: planId,
+      text: String(snapshot.text).slice(0, 300),
+      checked: Boolean(snapshot.checked),
+      source: snapshot.source ? String(snapshot.source).slice(0, 200) : null,
+      aisle: snapshot.aisle ? String(snapshot.aisle).slice(0, 50) : null,
+      created_by: user.id,
+    });
+  }
   revalidatePath(`/plans/${planId}/einkauf`);
 }
 
@@ -327,13 +420,37 @@ export async function moveIdea(planId: string, ideaId: string, list: IdeaList) {
   redirect(`/plans/${planId}#ideen`);
 }
 
-export async function deleteIdea(planId: string, ideaId: string) {
+export type IdeaSnapshot = { id: string; recipe_id: string | null; title: string; week: string };
+
+/** Removes a noted recipe and returns it, so the "Rückgängig" toast can put it back. */
+export async function deleteIdea(planId: string, ideaId: string): Promise<IdeaSnapshot | null> {
   await requireEditor(planId);
-  if (!isUuid(ideaId)) redirect(`/plans/${planId}`);
+  if (!isUuid(ideaId)) return null;
   const supabase = await createClient();
-  await supabase.from("meal_plan_ideas").delete().eq("id", ideaId).eq("plan_id", planId);
+  const { data } = await supabase
+    .from("meal_plan_ideas")
+    .delete()
+    .eq("id", ideaId)
+    .eq("plan_id", planId)
+    .select("id, recipe_id, title, week")
+    .maybeSingle();
   revalidatePath(`/plans/${planId}`);
-  redirect(`/plans/${planId}#ideen`);
+  return (data as IdeaSnapshot | null) ?? null;
+}
+
+export async function restoreIdea(planId: string, snapshot: IdeaSnapshot) {
+  const { user } = await requireEditor(planId);
+  if (!isUuid(snapshot.id) || !isIsoDate(snapshot.week) || (snapshot.recipe_id && !isUuid(snapshot.recipe_id))) return;
+  const supabase = await createClient();
+  await supabase.from("meal_plan_ideas").insert({
+    id: snapshot.id,
+    plan_id: planId,
+    recipe_id: snapshot.recipe_id,
+    title: String(snapshot.title).slice(0, 200),
+    week: snapshot.week,
+    created_by: user.id,
+  });
+  revalidatePath(`/plans/${planId}`);
 }
 
 /** Puts a noted recipe on a day: creates the plan entry and removes it from the list. */

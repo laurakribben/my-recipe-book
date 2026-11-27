@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { RecipeForm } from "@/components/recipe-form";
 import { EMPTY_DRAFT, type RecipeDraft } from "@/lib/recipe";
 import { shrinkImage } from "@/lib/shrink-image";
+import { AiProgress } from "@/components/ai-progress";
 import type { ExtractState, SaveState } from "@/app/recipes/actions";
 
 type Mode = "link" | "text" | "images" | "manual";
@@ -18,10 +19,11 @@ const MODES: { id: Mode; label: string }[] = [
 type Props = {
   extract: (prev: ExtractState, formData: FormData) => Promise<ExtractState>;
   save: (prev: SaveState, formData: FormData) => Promise<SaveState>;
+  startMode?: Mode;
 };
 
-export function NewRecipe({ extract, save }: Props) {
-  const [mode, setMode] = useState<Mode>("link");
+export function NewRecipe({ extract, save, startMode = "link" }: Props) {
+  const [mode, setMode] = useState<Mode>(startMode);
   const [draft, setDraft] = useState<RecipeDraft | null>(null);
   const [state, extractAction, pending] = useActionState(async (prev: ExtractState, formData: FormData) => {
     if (formData.get("mode") === "images") {
@@ -125,10 +127,12 @@ export function NewRecipe({ extract, save }: Props) {
             <span className="hint">Die KI rechnet alle Mengen auf diese Portionenzahl um.</span>
           </label>
 
-          {state && !state.ok && <p className="notice error">{state.error}</p>}
-          <button type="submit" disabled={pending}>
-            {pending ? "KI liest das Rezept…" : "Rezept erkennen"}
-          </button>
+          {state && !state.ok && !pending && <p className="notice error">{state.error}</p>}
+          {pending ? (
+            <AiProgress mode={mode as "link" | "text" | "images"} />
+          ) : (
+            <button type="submit">Rezept erkennen</button>
+          )}
         </form>
       )}
     </>

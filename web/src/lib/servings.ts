@@ -9,9 +9,9 @@ const FRACTION_CHARS = Object.keys(FRACTIONS).join("");
 
 // One amount: "80", "1,5", "1.5", "1/2", "1 1/2", "½", "1½", "1 ½"
 const AMOUNT = `(?:\\d+(?:[.,]\\d+)?(?:\\s*(?:\\d+\\/\\d+|[${FRACTION_CHARS}]))?|\\d+\\/\\d+|[${FRACTION_CHARS}])`;
-const LEADING = new RegExp(`^(\\s*(?:ca\\.?|etwa|circa|ungefähr)?\\s*)(${AMOUNT})(?:(\\s*(?:-|–|bis)\\s*)(${AMOUNT}))?(?=\\s|[a-zäöüß]|$)`, "i");
+export const LEADING = new RegExp(`^(\\s*(?:ca\\.?|etwa|circa|ungefähr)?\\s*)(${AMOUNT})(?:(\\s*(?:-|–|bis)\\s*)(${AMOUNT}))?(?=\\s|[a-zäöüß]|$)`, "i");
 
-const METRIC_UNITS = /^\s*(g|gr|kg|mg|ml|cl|dl|l|liter)\b/i;
+export const METRIC_UNITS = /^\s*(g|gr|kg|mg|ml|cl|dl|l|liter)\b/i;
 
 export function parseAmount(text: string): number | null {
   const t = text.trim();

@@ -33,6 +33,12 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
   The owner chooses the first day of the week. On a recipe page, "Merken für: Diese Woche /
   Nächste Woche" notes a recipe in the plan's idea lists without a day; in the plan it is put on a
   day later. The lists follow real weeks: next week's list becomes this week's when the week turns.
+- Start page "Heute" (today's dishes, this week's ideas, recently viewed), a bottom tab bar on
+  phones, search across all books (`/suche`, titles, ingredients, tags), and guided empty pages.
+- Shopping list grouped by supermarket aisle (sorted by the AI when items are added) with equal
+  ingredients merged into one row that names each recipe and its amount (`src/lib/shopping.ts`).
+- Deleting a recipe or clearing the list asks first; removing plan entries, ideas and shopping
+  items shows "Rückgängig" for a few seconds.
 - Each user can run 30 AI extractions per 24 hours (`AI_DAILY_LIMIT`), to keep costs predictable.
 
 ## Setup (once)
@@ -46,7 +52,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
    `supabase/migrations/0004_image_credit.sql` (picture source shown under the picture) and
    `supabase/migrations/0005_step_ingredients.sql` (ingredients per step in cooking mode) and
    `supabase/migrations/0006_meal_plans.sql` (meal plans and shopping lists) and
-   `supabase/migrations/0007_week_start_and_ideas.sql` (week start, idea lists).
+   `supabase/migrations/0007_week_start_and_ideas.sql` (week start, idea lists) and
+   `supabase/migrations/0008_search_and_aisles.sql` (search across books, shopping list aisles).
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address

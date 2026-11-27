@@ -8,7 +8,7 @@ import { loadRecipe } from "@/lib/recipes";
 import { parseServings } from "@/lib/servings";
 import { CookingMode } from "./cooking-mode";
 
-type Props = { params: Promise<{ recipeId: string }> };
+type Props = { params: Promise<{ recipeId: string }>; searchParams: Promise<{ portionen?: string }> };
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { recipeId } = await props.params;
@@ -18,8 +18,10 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function CookPage(props: Props) {
   const { recipeId } = await props.params;
+  const { portionen } = await props.searchParams;
   const recipe = await loadRecipe(recipeId);
   if (!recipe) notFound();
+  const planned = Number(portionen);
   const access = await getBookForUser(recipe.book_id);
   const stepIngredients = isStepIngredients(recipe.step_ingredients, recipe.steps.length) ? recipe.step_ingredients : null;
 
@@ -30,6 +32,7 @@ export default async function CookPage(props: Props) {
       imageUrl={imageUrl(recipe.image_path)}
       ingredients={recipe.ingredients}
       servingsBase={parseServings(recipe.servings)}
+      initialServings={planned > 0 && planned <= 100 ? planned : null}
       steps={recipe.steps}
       stepIngredients={stepIngredients}
       assign={

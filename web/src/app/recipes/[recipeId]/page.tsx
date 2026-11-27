@@ -7,6 +7,7 @@ import { imageUrl } from "@/lib/images";
 import { SOURCE_TYPE_LABELS, siteName } from "@/lib/recipe";
 import { loadRecipe } from "@/lib/recipes";
 import { AddToPlan } from "@/components/add-to-plan";
+import { RecordRecentView } from "@/components/recent";
 import { SettingsIcon } from "@/components/icons";
 import { ShareRecipe } from "@/components/share-recipe";
 import { setRecipeVisibility } from "../actions";
@@ -41,6 +42,7 @@ export default async function RecipePage(props: Props) {
 
   return (
     <article>
+      <RecordRecentView id={recipe.id} title={recipe.title} />
       {access && (
         <p className="small">
           <Link href={`/books/${access.book.id}`}>← {access.book.name}</Link>
@@ -127,31 +129,37 @@ export default async function RecipePage(props: Props) {
         </p>
       )}
 
-      <h2>Zutaten</h2>
-      <RecipeIngredients
-        recipeId={recipe.id}
-        base={base}
-        ingredients={recipe.ingredients}
-        initialServings={plannedServings > 0 && plannedServings <= 100 ? plannedServings : null}
-      />
+      {/* Wide screens: ingredients on the left (staying in view), steps on the right. */}
+      <div className="recipe-body">
+        <section className="recipe-ingredients">
+          <h2>Zutaten</h2>
+          <RecipeIngredients
+            recipeId={recipe.id}
+            base={base}
+            ingredients={recipe.ingredients}
+            initialServings={plannedServings > 0 && plannedServings <= 100 ? plannedServings : null}
+          />
+        </section>
+        <section className="recipe-steps">
+          <h2>Zubereitung</h2>
+          {recipe.steps.length > 0 ? (
+            <ol>
+              {recipe.steps.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+          ) : (
+            <p className="empty">Noch keine Zubereitungsschritte vorhanden. Siehe Originalbeitrag.</p>
+          )}
 
-      <h2>Zubereitung</h2>
-      {recipe.steps.length > 0 ? (
-        <ol>
-          {recipe.steps.map((step, i) => (
-            <li key={i}>{step}</li>
-          ))}
-        </ol>
-      ) : (
-        <p className="empty">Noch keine Zubereitungsschritte vorhanden. Siehe Originalbeitrag.</p>
-      )}
-
-      {recipe.notes && (
-        <>
-          <h2>Notizen</h2>
-          <p className="notes">{recipe.notes}</p>
-        </>
-      )}
+          {recipe.notes && (
+            <>
+              <h2>Notizen</h2>
+              <p className="notes">{recipe.notes}</p>
+            </>
+          )}
+        </section>
+      </div>
 
       <p className="source">
         {recipe.source_url ? (
