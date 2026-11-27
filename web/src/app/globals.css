@@ -366,3 +366,12 @@ td form { margin: 0; }
 .shopping-list input { width: 1.35rem; height: 1.35rem; flex: none; accent-color: var(--accent); }
 .shopping-list label.checked > span { text-decoration: line-through; color: var(--muted); }
 .shopping-source { display: block; font-size: 0.8rem; color: var(--muted); text-decoration: none; }
+
+.ideas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 0 1.5rem; margin-top: 1rem; }
+.idea-list h2 { font-size: 1.05rem; margin: 1rem 0 0.25rem; }
+.idea-list .plain-list { margin: 0; }
+.idea-list .plain-list > li { padding: 0.35rem 0; }
+.entry-edit[open] > summary { display: block; margin-bottom: 0.5rem; }
+.note-buttons { margin-top: 0.75rem; }
+.note-buttons form { margin: 0; }
+.note-buttons button { padding: 0.3rem 0.8rem; font-size: 0.9rem; }

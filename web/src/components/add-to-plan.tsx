@@ -1,4 +1,4 @@
-import { addEntry } from "@/app/plans/actions";
+import { addEntry, addIdea, type IdeaList } from "@/app/plans/actions";
 
 type Props = {
   recipeId: string;
@@ -7,48 +7,71 @@ type Props = {
   defaultServings: number | null;
 };
 
-/** "Zum Wochenplan hinzufügen" on the recipe page. */
+/**
+ * On the recipe page: note the recipe for "Diese Woche" / "Nächste Woche" (in the user's
+ * own plan, or the first plan they can edit), or put it on a specific day.
+ */
 export function AddToPlan({ recipeId, plans, defaultDay, defaultServings }: Props) {
   if (plans.length === 0) return null;
+  const notePlan = plans[0];
+  const note = (list: IdeaList) => async () => {
+    "use server";
+    await addIdea(notePlan.id, recipeId, list, `/recipes/${recipeId}`);
+  };
   return (
-    <details className="add-to-plan">
-      <summary>Zum Wochenplan hinzufügen</summary>
-      <form action={async (formData: FormData) => {
-        "use server";
-        const planId = String(formData.get("plan_id") ?? "");
-        if (!plans.some((p) => p.id === planId)) return;
-        await addEntry(planId, formData);
-      }}>
-        <input type="hidden" name="recipe_id" value={recipeId} />
-        <input type="hidden" name="back" value={`/recipes/${recipeId}`} />
-        <div className="grid-2">
-          {plans.length > 1 ? (
+    <>
+      <div className="row small note-buttons">
+        <span className="muted">Merken für:</span>
+        <form action={note("this")}>
+          <button type="submit" className="secondary">
+            Diese Woche
+          </button>
+        </form>
+        <form action={note("next")}>
+          <button type="submit" className="secondary">
+            Nächste Woche
+          </button>
+        </form>
+      </div>
+      <details className="add-to-plan">
+        <summary>Für einen bestimmten Tag einplanen</summary>
+        <form action={async (formData: FormData) => {
+          "use server";
+          const planId = String(formData.get("plan_id") ?? "");
+          if (!plans.some((p) => p.id === planId)) return;
+          await addEntry(planId, formData);
+        }}>
+          <input type="hidden" name="recipe_id" value={recipeId} />
+          <input type="hidden" name="back" value={`/recipes/${recipeId}`} />
+          <div className="grid-2">
+            {plans.length > 1 ? (
+              <label className="field">
+                <span>Plan</span>
+                <select name="plan_id" defaultValue={plans[0].id}>
+                  {plans.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <input type="hidden" name="plan_id" value={plans[0].id} />
+            )}
             <label className="field">
-              <span>Plan</span>
-              <select name="plan_id" defaultValue={plans[0].id}>
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              <span>Tag</span>
+              <input type="date" name="day" defaultValue={defaultDay} required />
             </label>
-          ) : (
-            <input type="hidden" name="plan_id" value={plans[0].id} />
-          )}
-          <label className="field">
-            <span>Tag</span>
-            <input type="date" name="day" defaultValue={defaultDay} required />
-          </label>
-          <label className="field">
-            <span>Portionen</span>
-            <input type="number" name="servings" min={1} max={100} step="any" defaultValue={defaultServings ?? ""} placeholder="wie im Rezept" />
-          </label>
-        </div>
-        <button type="submit" className="secondary">
-          Einplanen
-        </button>
-      </form>
-    </details>
+            <label className="field">
+              <span>Portionen</span>
+              <input type="number" name="servings" min={1} max={100} step="any" defaultValue={defaultServings ?? ""} placeholder="wie im Rezept" />
+            </label>
+          </div>
+          <button type="submit" className="secondary">
+            Einplanen
+          </button>
+        </form>
+      </details>
+    </>
   );
 }

@@ -4,7 +4,12 @@ import { isUuid } from "@/lib/books";
 import type { BookRole } from "@/lib/recipe";
 import { createClient, getUser } from "@/lib/supabase/server";
 
-export type Plan = { id: string; name: string; owner_id: string; created_at: string };
+/** week_start: first day of the week, 1 = Monday ... 7 = Sunday. */
+export type Plan = { id: string; name: string; owner_id: string; created_at: string; week_start: number };
+
+export type PlanIdea = { id: string; recipe_id: string | null; title: string; week: string; created_at: string };
+
+export const WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 
 export type PlanEntry = {
   id: string;
@@ -33,7 +38,7 @@ export const getPlanForUser = cache(async (planId: string) => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("meal_plan_members")
-    .select("role, meal_plans (id, name, owner_id, created_at)")
+    .select("role, meal_plans (id, name, owner_id, created_at, week_start)")
     .eq("plan_id", planId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -46,7 +51,7 @@ export async function getMyPlans(userId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("meal_plan_members")
-    .select("role, meal_plans (id, name, owner_id, created_at)")
+    .select("role, meal_plans (id, name, owner_id, created_at, week_start)")
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
   return (data ?? [])
@@ -83,14 +88,15 @@ export function addDays(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** The Monday of the week containing `date`. */
-export function mondayOf(date: string): string {
-  const weekday = (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0
-  return addDays(date, -weekday);
+/** First day of the week containing `date`, for weeks starting on `weekStart` (1 = Monday ... 7 = Sunday). */
+export function weekStartOf(date: string, weekStart = 1): string {
+  const jsDay = new Date(`${date}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  const isoDay = jsDay === 0 ? 7 : jsDay;
+  return addDays(date, -((isoDay - weekStart + 7) % 7));
 }
 
-export function weekDays(monday: string): string[] {
-  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+export function weekDays(start: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 }
 
 const dayFormat = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -102,6 +108,6 @@ export function formatDay(date: string): string {
 }
 
 /** "30. Nov. – 6. Dez." */
-export function formatWeek(monday: string): string {
-  return `${shortFormat.format(new Date(`${monday}T00:00:00Z`))} – ${shortFormat.format(new Date(`${addDays(monday, 6)}T00:00:00Z`))}`;
+export function formatWeek(start: string): string {
+  return `${shortFormat.format(new Date(`${start}T00:00:00Z`))} – ${shortFormat.format(new Date(`${addDays(start, 6)}T00:00:00Z`))}`;
 }

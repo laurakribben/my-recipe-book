@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPlanForUser } from "@/lib/plans";
+import { getPlanForUser, WEEKDAY_NAMES } from "@/lib/plans";
 import { ROLE_LABELS, type BookRole } from "@/lib/recipe";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -9,6 +9,7 @@ import {
   leavePlan,
   removePlanMember,
   renamePlan,
+  setWeekStart,
   sharePlan,
   withdrawPlanInvite,
 } from "../../actions";
@@ -130,6 +131,21 @@ export default async function PlanSettingsPage(props: Props) {
 
       {isOwner ? (
         <>
+          <h2>Wochenbeginn</h2>
+          <form action={setWeekStart.bind(null, plan.id)} className="row">
+            <select name="week_start" defaultValue={plan.week_start} style={{ width: "auto" }}>
+              {WEEKDAY_NAMES.map((name, i) => (
+                <option key={name} value={i + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className="secondary">
+              Speichern
+            </button>
+          </form>
+          <p className="hint">Gilt für alle Mitglieder dieses Plans.</p>
+
           <h2>Name</h2>
           <form action={renamePlan.bind(null, plan.id)} className="row">
             <input type="text" name="name" defaultValue={plan.name} required maxLength={100} style={{ flex: "1 1 14rem" }} />

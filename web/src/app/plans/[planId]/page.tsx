@@ -9,13 +9,23 @@ import {
   getMyPlans,
   getPlanForUser,
   isIsoDate,
-  mondayOf,
+  weekStartOf,
   today,
   weekDays,
   type PlanEntry,
+  type PlanIdea,
 } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
-import { addEntry, addWeekToShopping, deleteEntry, updateEntry } from "../actions";
+import {
+  addEntry,
+  addWeekToShopping,
+  deleteEntry,
+  deleteIdea,
+  moveIdea,
+  planIdea,
+  updateEntry,
+  type IdeaList,
+} from "../actions";
 
 type Props = { params: Promise<{ planId: string }>; searchParams: Promise<{ woche?: string }> };
 
@@ -38,8 +48,9 @@ export default async function PlanWeekPage(props: Props) {
   const editable = canEdit(role);
 
   const todayDate = today();
-  const monday = mondayOf(isIsoDate(woche) ? woche : todayDate);
-  const days = weekDays(monday);
+  const thisWeek = weekStartOf(todayDate, plan.week_start);
+  const weekStart = weekStartOf(isIsoDate(woche) ? woche : todayDate, plan.week_start);
+  const days = weekDays(weekStart);
 
   const supabase = await createClient();
   const { data: entryRows } = await supabase
@@ -50,6 +61,19 @@ export default async function PlanWeekPage(props: Props) {
     .lte("day", days[6])
     .order("created_at");
   const entries = (entryRows ?? []) as PlanEntry[];
+
+  // Idea lists: everything up to this week is "Diese Woche" (left-overs included), later is "Nächste Woche".
+  const nextWeek = addDays(thisWeek, 7);
+  const { data: ideaRows } = await supabase
+    .from("meal_plan_ideas")
+    .select("id, recipe_id, title, week, created_at")
+    .eq("plan_id", plan.id)
+    .order("created_at");
+  const ideas = (ideaRows ?? []) as PlanIdea[];
+  const ideaLists: { list: IdeaList; title: string; start: string; items: PlanIdea[] }[] = [
+    { list: "this", title: "Diese Woche", start: thisWeek, items: ideas.filter((i) => i.week < nextWeek) },
+    { list: "next", title: "Nächste Woche", start: nextWeek, items: ideas.filter((i) => i.week >= nextWeek) },
+  ];
 
   // Recipes the user can plan: those in their own and shared books, grouped by book. (Without
   // the book filter, public recipes of other people's books would show up too.)
@@ -97,26 +121,82 @@ export default async function PlanWeekPage(props: Props) {
         </p>
       )}
 
+      <section id="ideen" className="ideas" aria-label="Ideen">
+        {ideaLists.map(({ list, title, start, items }) => (
+          <div key={list} className="idea-list">
+            <h2>
+              {title} <span className="muted small">({items.length})</span>
+            </h2>
+            {items.length === 0 && (
+              <p className="empty small">Merke Rezepte auf der Rezeptseite mit „{title}“ vor.</p>
+            )}
+            <ul className="plain-list">
+              {items.map((idea) => (
+                <li key={idea.id}>
+                  {idea.recipe_id ? <Link href={`/recipes/${idea.recipe_id}`}>{idea.title}</Link> : <span>{idea.title}</span>}
+                  {editable && (
+                    <details className="entry-edit">
+                      <summary>Einplanen …</summary>
+                      <form action={planIdea.bind(null, plan.id, idea.id)} className="grid-2">
+                        <label className="field">
+                          <span>Tag</span>
+                          <select name="day" defaultValue={list === "this" && todayDate >= start ? todayDate : start}>
+                            {weekDays(start).map((d) => (
+                              <option key={d} value={d}>
+                                {formatDay(d)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Portionen</span>
+                          <input type="number" name="servings" min={1} max={100} step="any" placeholder="wie im Rezept" />
+                        </label>
+                        <div className="row">
+                          <button type="submit">Einplanen</button>
+                        </div>
+                      </form>
+                      <div className="row small">
+                        <form action={moveIdea.bind(null, plan.id, idea.id, list === "this" ? "next" : "this")}>
+                          <button type="submit" className="link-button">
+                            {list === "this" ? "→ Nächste Woche" : "← Diese Woche"}
+                          </button>
+                        </form>
+                        <form action={deleteIdea.bind(null, plan.id, idea.id)}>
+                          <button type="submit" className="link-button">
+                            Entfernen
+                          </button>
+                        </form>
+                      </div>
+                    </details>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </section>
+
       <nav className="week-nav" aria-label="Woche">
-        <Link href={`/plans/${plan.id}?woche=${addDays(monday, -7)}`} aria-label="Vorherige Woche">
+        <Link href={`/plans/${plan.id}?woche=${addDays(weekStart, -7)}`} aria-label="Vorherige Woche">
           ←
         </Link>
         <span>
-          <strong>{formatWeek(monday)}</strong>
-          {monday !== mondayOf(todayDate) && (
+          <strong>{formatWeek(weekStart)}</strong>
+          {weekStart !== thisWeek && (
             <>
               {" "}
               · <Link href={`/plans/${plan.id}`}>Diese Woche</Link>
             </>
           )}
         </span>
-        <Link href={`/plans/${plan.id}?woche=${addDays(monday, 7)}`} aria-label="Nächste Woche">
+        <Link href={`/plans/${plan.id}?woche=${addDays(weekStart, 7)}`} aria-label="Nächste Woche">
           →
         </Link>
       </nav>
 
       {editable && entries.some((e) => e.recipe_id) && (
-        <form action={addWeekToShopping.bind(null, plan.id, monday)}>
+        <form action={addWeekToShopping.bind(null, plan.id, weekStart)}>
           <button type="submit" className="secondary">
             Einkaufsliste für diese Woche
           </button>

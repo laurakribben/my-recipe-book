@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { canEdit, isUuid } from "@/lib/books";
-import { addDays, formatDay, getPlanForUser, isIsoDate, mondayOf } from "@/lib/plans";
+import { addDays, formatDay, getPlanForUser, isIsoDate, today, weekStartOf } from "@/lib/plans";
 import type { Recipe } from "@/lib/recipe";
 import { parseServings, scaleIngredient } from "@/lib/servings";
 import { shareWithEmail } from "@/lib/sharing";
@@ -13,8 +13,9 @@ import { createClient } from "@/lib/supabase/server";
 const ShareRole = z.enum(["editor", "viewer"]);
 const PlanName = z.string().trim().min(1).max(100);
 
+/** The plan page normalises any day to the first day of its week. */
 function weekUrl(planId: string, day: string) {
-  return `/plans/${planId}?woche=${mondayOf(day)}`;
+  return `/plans/${planId}?woche=${day}`;
 }
 
 function settingsUrl(planId: string, msg: string, kind: "ok" | "error" = "ok") {
@@ -112,17 +113,17 @@ export async function deleteEntry(planId: string, entryId: string, day: string) 
  * to each entry's servings. Entries already on the list are skipped, so it can be
  * pressed again after planning more dishes.
  */
-export async function addWeekToShopping(planId: string, monday: string) {
+export async function addWeekToShopping(planId: string, weekStart: string) {
   const { user } = await requireEditor(planId);
-  if (!isIsoDate(monday)) redirect(`/plans/${planId}`);
+  if (!isIsoDate(weekStart)) redirect(`/plans/${planId}`);
   const supabase = await createClient();
 
   const { data: entries } = await supabase
     .from("meal_plan_entries")
     .select("id, day, recipe_id, title, servings")
     .eq("plan_id", planId)
-    .gte("day", monday)
-    .lte("day", addDays(monday, 6))
+    .gte("day", weekStart)
+    .lte("day", addDays(weekStart, 6))
     .not("recipe_id", "is", null)
     .order("day");
   const { data: existing } = await supabase.from("shopping_items").select("entry_id").eq("plan_id", planId);
@@ -281,4 +282,97 @@ export async function leavePlan(planId: string) {
   const supabase = await createClient();
   await supabase.from("meal_plan_members").delete().eq("plan_id", planId).eq("user_id", access.user.id);
   redirect("/plans");
+}
+
+// ---------------------------------------------------------------- idea lists ("Diese Woche" / "Nächste Woche")
+
+export type IdeaList = "this" | "next";
+
+/** Notes a recipe for this or next week, without a day yet. */
+export async function addIdea(planId: string, recipeId: string, list: IdeaList, back: string) {
+  const { user, plan } = await requireEditor(planId);
+  if (!isUuid(recipeId)) redirect(`/plans/${planId}`);
+  const supabase = await createClient();
+  // RLS: only recipes the user can see.
+  const { data: recipe } = await supabase.from("recipes").select("title").eq("id", recipeId).maybeSingle();
+  if (!recipe) redirect(`/plans/${planId}`);
+
+  const thisWeek = weekStartOf(today(), plan.week_start);
+  const week = list === "this" ? thisWeek : addDays(thisWeek, 7);
+  // Don't note the same recipe twice in the same list.
+  let existing = supabase.from("meal_plan_ideas").select("id").eq("plan_id", planId).eq("recipe_id", recipeId);
+  existing = list === "this" ? existing.lt("week", addDays(thisWeek, 7)) : existing.gte("week", addDays(thisWeek, 7));
+  const { data: dupes } = await existing.limit(1);
+  if (!dupes?.length) {
+    const { error } = await supabase
+      .from("meal_plan_ideas")
+      .insert({ plan_id: planId, recipe_id: recipeId, title: recipe.title, week, created_by: user.id });
+    if (error) console.error("Noting a recipe failed", { code: error.code, message: error.message });
+  }
+  revalidatePath(`/plans/${planId}`);
+  redirect(back.startsWith("/recipes/") ? `${back}?gemerkt=${list}` : `/plans/${planId}`);
+}
+
+export async function moveIdea(planId: string, ideaId: string, list: IdeaList) {
+  const { plan } = await requireEditor(planId);
+  if (!isUuid(ideaId)) redirect(`/plans/${planId}`);
+  const thisWeek = weekStartOf(today(), plan.week_start);
+  const supabase = await createClient();
+  await supabase
+    .from("meal_plan_ideas")
+    .update({ week: list === "this" ? thisWeek : addDays(thisWeek, 7) })
+    .eq("id", ideaId)
+    .eq("plan_id", planId);
+  revalidatePath(`/plans/${planId}`);
+  redirect(`/plans/${planId}#ideen`);
+}
+
+export async function deleteIdea(planId: string, ideaId: string) {
+  await requireEditor(planId);
+  if (!isUuid(ideaId)) redirect(`/plans/${planId}`);
+  const supabase = await createClient();
+  await supabase.from("meal_plan_ideas").delete().eq("id", ideaId).eq("plan_id", planId);
+  revalidatePath(`/plans/${planId}`);
+  redirect(`/plans/${planId}#ideen`);
+}
+
+/** Puts a noted recipe on a day: creates the plan entry and removes it from the list. */
+export async function planIdea(planId: string, ideaId: string, formData: FormData) {
+  const { user } = await requireEditor(planId);
+  const day = String(formData.get("day") ?? "");
+  if (!isUuid(ideaId) || !isIsoDate(day)) redirect(`/plans/${planId}`);
+  const supabase = await createClient();
+  const { data: idea } = await supabase
+    .from("meal_plan_ideas")
+    .select("recipe_id, title")
+    .eq("id", ideaId)
+    .eq("plan_id", planId)
+    .maybeSingle();
+  if (!idea) redirect(`/plans/${planId}`);
+
+  const { error } = await supabase.from("meal_plan_entries").insert({
+    plan_id: planId,
+    day,
+    recipe_id: idea.recipe_id,
+    title: idea.title,
+    servings: parseServingsField(formData.get("servings")),
+    created_by: user.id,
+  });
+  if (error) {
+    console.error("Planning an idea failed", { code: error.code, message: error.message });
+    redirect(`/plans/${planId}#ideen`);
+  }
+  await supabase.from("meal_plan_ideas").delete().eq("id", ideaId);
+  revalidatePath(`/plans/${planId}`);
+  redirect(`${weekUrl(planId, day)}#tag-${day}`);
+}
+
+export async function setWeekStart(planId: string, formData: FormData) {
+  await requireOwner(planId);
+  const value = Number(formData.get("week_start"));
+  if (!Number.isInteger(value) || value < 1 || value > 7) redirect(settingsUrl(planId, "Ungültiger Wochentag.", "error"));
+  const supabase = await createClient();
+  await supabase.from("meal_plans").update({ week_start: value }).eq("id", planId);
+  revalidatePath(`/plans/${planId}`, "layout");
+  redirect(settingsUrl(planId, "Wochenbeginn gespeichert."));
 }

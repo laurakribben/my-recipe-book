@@ -14,7 +14,7 @@ import { RecipeIngredients } from "@/components/servings";
 
 type Props = {
   params: Promise<{ recipeId: string }>;
-  searchParams: Promise<{ portionen?: string; geplant?: string }>;
+  searchParams: Promise<{ portionen?: string; geplant?: string; gemerkt?: string }>;
 };
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
@@ -27,7 +27,7 @@ const dateFormat = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-
 
 export default async function RecipePage(props: Props) {
   const { recipeId } = await props.params;
-  const { portionen, geplant } = await props.searchParams;
+  const { portionen, geplant, gemerkt } = await props.searchParams;
   const recipe = await loadRecipe(recipeId);
   if (!recipe) notFound();
   const access = await getBookForUser(recipe.book_id);
@@ -63,6 +63,12 @@ export default async function RecipePage(props: Props) {
         </p>
       )}
 
+      {(gemerkt === "this" || gemerkt === "next") && (
+        <p className="notice success">
+          Vorgemerkt für „{gemerkt === "this" ? "Diese Woche" : "Nächste Woche"}“.{" "}
+          <Link href="/plans#ideen">Zum Wochenplan</Link>
+        </p>
+      )}
       {isIsoDate(geplant) && (
         <p className="notice success">
           Eingeplant für {formatDay(geplant)}. <Link href={`/plans?woche=${geplant}`}>Zum Wochenplan</Link>
