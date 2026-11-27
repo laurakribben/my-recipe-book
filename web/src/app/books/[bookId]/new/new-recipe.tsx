@@ -110,6 +110,21 @@ export function NewRecipe({ extract, save }: Props) {
             </>
           )}
 
+          <label className="field">
+            <span>Portionen (optional)</span>
+            <input
+              type="number"
+              name="target_servings"
+              min={1}
+              max={50}
+              step={1}
+              inputMode="numeric"
+              placeholder="wie im Rezept"
+              style={{ maxWidth: "10rem" }}
+            />
+            <span className="hint">Die KI rechnet alle Mengen auf diese Portionenzahl um.</span>
+          </label>
+
           {state && !state.ok && <p className="notice error">{state.error}</p>}
           <button type="submit" disabled={pending}>
             {pending ? "KI liest das Rezept…" : "Rezept erkennen"}

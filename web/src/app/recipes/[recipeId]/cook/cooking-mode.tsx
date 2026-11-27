@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useActionState, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { findDurations, formatSeconds } from "@/lib/durations";
 import type { IngredientGroup } from "@/lib/recipe";
+import { scaleIngredient } from "@/lib/servings";
+import { scaleGroups, ServingsControl, useServingsFactor } from "@/components/servings";
 import type { AssignState } from "@/app/recipes/actions";
 
 type Props = {
@@ -12,6 +14,8 @@ type Props = {
   title: string;
   imageUrl: string | null;
   ingredients: IngredientGroup[];
+  /** Number of servings the amounts are written for, if known. */
+  servingsBase: number | null;
   steps: string[];
   /** Ingredients with amounts for each step, or null if not assigned yet. */
   stepIngredients: string[][] | null;
@@ -80,7 +84,18 @@ function playBeeps(ctx: AudioContext | null) {
 
 // ---------------------------------------------------------------- component
 
-function CookingModeClient({ recipeId, title, imageUrl, ingredients, steps, stepIngredients, assign }: Props) {
+function CookingModeClient({
+  recipeId,
+  title,
+  imageUrl,
+  ingredients: originalIngredients,
+  servingsBase,
+  steps,
+  stepIngredients,
+  assign,
+}: Props) {
+  const [factor, setFactor] = useServingsFactor(recipeId);
+  const ingredients = scaleGroups(originalIngredients, factor);
   const total = steps.length + 1; // position 0 = ingredients, then one position per step
   const [saved] = useState(() => loadSaved(recipeId));
   const [pos, setPos] = useState(() => Math.min(saved?.pos ?? 0, total - 1));
@@ -319,6 +334,7 @@ function CookingModeClient({ recipeId, title, imageUrl, ingredients, steps, step
               </div>
             )}
             <p className="cook-step-label">Zutaten bereitlegen</p>
+            {ingredients.length > 0 && <ServingsControl base={servingsBase} factor={factor} onChange={setFactor} />}
             {ingredients.length > 0 ? ingredientList : <p className="empty">Keine Zutaten eingetragen.</p>}
             {steps.length === 0 && <p className="empty">Für dieses Rezept sind keine Schritte eingetragen.</p>}
           </>
@@ -331,9 +347,12 @@ function CookingModeClient({ recipeId, title, imageUrl, ingredients, steps, step
             {stepIngredients && stepIngredients[pos - 1]?.length > 0 && (
               <ul className="cook-step-ingredients" aria-label="Zutaten für diesen Schritt">
                 {stepIngredients[pos - 1].map((item, i) => (
-                  <li key={i}>{item}</li>
+                  <li key={i}>{scaleIngredient(item, factor)}</li>
                 ))}
               </ul>
+            )}
+            {factor !== 1 && (
+              <p className="hint">Mengen umgerechnet – Angaben im Text gelten für die Originalmenge.</p>
             )}
             {!stepIngredients && assign && ingredients.length > 0 && <AssignButton assign={assign} />}
             {durations.length > 0 && (

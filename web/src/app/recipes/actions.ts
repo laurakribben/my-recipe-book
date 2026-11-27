@@ -83,7 +83,10 @@ export async function extractAction(bookId: string, _prev: ExtractState, formDat
       return { ok: false, error: "Unbekannte Eingabe." };
     }
 
-    const result = await extractRecipe(input);
+    const servingsValue = Number(formData.get("target_servings") ?? "");
+    const targetServings =
+      Number.isInteger(servingsValue) && servingsValue >= 1 && servingsValue <= 50 ? servingsValue : undefined;
+    const result = await extractRecipe(input, { targetServings });
     await supabase.from("ai_extractions").insert({ user_id: access.user.id, ...result.usage });
 
     const sourceUrl = String(formData.get("source_url") ?? "").trim();

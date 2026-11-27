@@ -114,7 +114,7 @@ label { display: block; font-size: 0.95rem; }
 .field > span { display: block; margin-bottom: 0.25rem; }
 .hint { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 0.2rem; }
 
-input[type="text"], input[type="email"], input[type="url"], input[type="search"], select, textarea {
+input[type="text"], input[type="email"], input[type="url"], input[type="search"], input[type="number"], select, textarea {
   width: 100%;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--line);
@@ -324,3 +324,9 @@ td form { margin: 0; }
 .completion-list { list-style: none; padding: 0; margin: 0 0 1rem; }
 .completion-list li { margin: 0.3rem 0; }
 .completion-list li > span:first-child { display: inline-block; width: 1.2rem; color: var(--accent); }
+
+/* ---------------------------------------------------------------- servings */
+
+.servings { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0.5rem 0 0.75rem; }
+.servings button.secondary { width: 2.6rem; height: 2.6rem; padding: 0; font-size: 1.3rem; line-height: 1; border-radius: 50%; }
+.servings > span { min-width: 7.5rem; text-align: center; font-variant-numeric: tabular-nums; }

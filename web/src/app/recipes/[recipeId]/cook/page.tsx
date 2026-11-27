@@ -5,6 +5,7 @@ import { canEdit, getBookForUser } from "@/lib/books";
 import { imageUrl } from "@/lib/images";
 import { isStepIngredients } from "@/lib/recipe";
 import { loadRecipe } from "@/lib/recipes";
+import { parseServings } from "@/lib/servings";
 import { CookingMode } from "./cooking-mode";
 
 type Props = { params: Promise<{ recipeId: string }> };
@@ -28,6 +29,7 @@ export default async function CookPage(props: Props) {
       title={recipe.title}
       imageUrl={imageUrl(recipe.image_path)}
       ingredients={recipe.ingredients}
+      servingsBase={parseServings(recipe.servings)}
       steps={recipe.steps}
       stepIngredients={stepIngredients}
       assign={

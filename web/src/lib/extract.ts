@@ -129,8 +129,17 @@ function sourceTypeFor(input: ExtractionInput): { type: SourceType; url: string 
   return { type: "photo", url: "" };
 }
 
+function servingsInstruction(target: number): string {
+  return `The user wants this recipe for ${target} servings (Portionen).
+- If the source states how many servings it makes, convert every amount to ${target} servings: in the ingredients, in the steps and in the per-step ingredients. Use practical kitchen amounts (e.g. "150 g", "1½ TL", "2 Eier"; round grams sensibly) and keep times and temperatures unchanged. Set "servings" to "${target}" and add to "notes" (German): "Umgerechnet von <original> auf ${target} Portionen."
+- If the source doesn't say how many servings it makes, don't convert anything, leave "servings" as stated (or empty) and add to "notes": "Portionenzahl im Original nicht angegeben – Mengen nicht umgerechnet."`;
+}
+
 /** Sends the source to Claude and returns a German recipe draft for the user to review. */
-export async function extractRecipe(input: ExtractionInput): Promise<ExtractionResult> {
+export async function extractRecipe(
+  input: ExtractionInput,
+  options: { targetServings?: number } = {},
+): Promise<ExtractionResult> {
   const client = new Anthropic();
 
   let response;
@@ -139,7 +148,14 @@ export async function extractRecipe(input: ExtractionInput): Promise<ExtractionR
       model: EXTRACTION_MODEL,
       max_tokens: 16000,
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: buildContent(input) }],
+      messages: [
+        {
+          role: "user",
+          content: options.targetServings
+            ? [...buildContent(input), { type: "text", text: servingsInstruction(options.targetServings) }]
+            : buildContent(input),
+        },
+      ],
       output_config: { effort: "medium", format: zodOutputFormat(ExtractedRecipe) },
     });
   } catch (error) {

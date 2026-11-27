@@ -6,6 +6,8 @@ import { canEdit, getBookForUser } from "@/lib/books";
 import { imageUrl } from "@/lib/images";
 import { SOURCE_TYPE_LABELS, siteName } from "@/lib/recipe";
 import { loadRecipe } from "@/lib/recipes";
+import { parseServings } from "@/lib/servings";
+import { RecipeIngredients } from "@/components/servings";
 
 type Props = { params: Promise<{ recipeId: string }> };
 
@@ -80,17 +82,7 @@ export default async function RecipePage(props: Props) {
       )}
 
       <h2>Zutaten</h2>
-      {recipe.ingredients.length === 0 && <p className="empty">Keine Zutaten eingetragen.</p>}
-      {recipe.ingredients.map((group, i) => (
-        <div key={i}>
-          {group.name && <h3>{group.name}</h3>}
-          <ul>
-            {group.items.map((item, j) => (
-              <li key={j}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      <RecipeIngredients recipeId={recipe.id} base={parseServings(recipe.servings)} ingredients={recipe.ingredients} />
 
       <h2>Zubereitung</h2>
       {recipe.steps.length > 0 ? (
