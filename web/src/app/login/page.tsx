@@ -5,8 +5,7 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Anmelden" };
 
-export default async function LoginPage(props: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await props.searchParams;
+export default async function LoginPage() {
   if (await getUser()) redirect("/");
 
   return (
@@ -16,7 +15,6 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
         Das Rezeptbuch ist nur auf Einladung nutzbar. Gib die E-Mail-Adresse ein, an die deine Einladung ging –
         du bekommst einen Anmeldelink.
       </p>
-      {error && <p className="notice error">Der Anmeldelink ist ungültig oder abgelaufen. Bitte fordere einen neuen an.</p>}
       <LoginForm />
     </>
   );
