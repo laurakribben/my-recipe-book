@@ -50,33 +50,11 @@ export default async function PlanSettingsPage(props: Props) {
       {ok && <p className="notice success">{ok}</p>}
       {error && <p className="notice error">{error}</p>}
 
-      {isOwner && (
-        <section>
-          <h2 id="teilen">Teilen</h2>
-          <form action={sharePlan.bind(null, plan.id)} className="stack">
-            <label>
-              <span>E-Mail-Adresse</span>
-              <input type="email" name="email" required />
-            </label>
-            <div className="row">
-              <select name="role" defaultValue="viewer" style={{ width: "auto" }}>
-                <option value="viewer">{ROLE_LABELS.viewer}</option>
-                <option value="editor">{ROLE_LABELS.editor}</option>
-              </select>
-              <button type="submit">Teilen</button>
-            </div>
-            <p className="hint">
-              Mitglieder sehen alle Wochen und die Einkaufsliste. „Kann lesen“ darf auf der Einkaufsliste nur abhaken.
-              Hat die Person noch kein Konto, bekommt sie eine Einladung per E-Mail und sieht den Plan nach der ersten
-              Anmeldung.
-            </p>
-          </form>
-        </section>
-      )}
-
-      <h2 id={isOwner ? undefined : "teilen"}>Mitglieder</h2>
+      <h2 id="teilen">Mitglieder</h2>
+      {/* The invite fields sit in the last table row; a <form> can't wrap a row, so they use form="invite". */}
+      {isOwner && <form id="invite" action={sharePlan.bind(null, plan.id)} />}
       <div className="table-wrap">
-        <table>
+        <table className="members-table">
           <tbody>
             {(members ?? []).map((m) => {
               const profile = m.profiles as unknown as { email: string; display_name: string | null } | null;
@@ -106,7 +84,12 @@ export default async function PlanSettingsPage(props: Props) {
                   <td>
                     {editable && (
                       <form action={removePlanMember.bind(null, plan.id, m.user_id)} className="member-actions">
-                        <button type="submit" className="danger icon-button" aria-label="Mitglied entfernen" title="Mitglied entfernen">
+                        <button
+                          type="submit"
+                          className="danger icon-button"
+                          aria-label="Mitglied entfernen"
+                          title="Mitglied entfernen"
+                        >
                           <TrashIcon />
                         </button>
                       </form>
@@ -123,16 +106,53 @@ export default async function PlanSettingsPage(props: Props) {
                 <td>{ROLE_LABELS[i.role as BookRole]}</td>
                 <td>
                   <form action={withdrawPlanInvite.bind(null, plan.id, i.id)} className="member-actions">
-                    <button type="submit" className="danger icon-button" aria-label="Einladung zurückziehen" title="Einladung zurückziehen">
+                    <button
+                      type="submit"
+                      className="danger icon-button"
+                      aria-label="Einladung zurückziehen"
+                      title="Einladung zurückziehen"
+                    >
                       <TrashIcon />
                     </button>
                   </form>
                 </td>
               </tr>
             ))}
+            {isOwner && (
+              <tr className="invite-row">
+                <td>
+                  <input
+                    type="email"
+                    name="email"
+                    form="invite"
+                    required
+                    placeholder="E-Mail-Adresse"
+                    aria-label="E-Mail-Adresse der neuen Person"
+                  />
+                </td>
+                <td>
+                  <select name="role" form="invite" defaultValue="viewer" aria-label="Rolle">
+                    <option value="viewer">{ROLE_LABELS.viewer}</option>
+                    <option value="editor">{ROLE_LABELS.editor}</option>
+                  </select>
+                </td>
+                <td>
+                  <button type="submit" form="invite" className="btn-small">
+                    Einladen
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+      {isOwner && (
+        <p className="hint">
+          Mitglieder sehen alle Wochen und die Einkaufsliste. „Kann lesen“ darf auf der Einkaufsliste nur abhaken. Hat
+          die Person noch kein Konto, bekommt sie eine Einladung per E-Mail und sieht den Plan nach der ersten
+          Anmeldung.
+        </p>
+      )}
 
       <h2 id="anzeige">Anzeige</h2>
       <form action={setNutritionBalance.bind(null, plan.id)} className="stack">
@@ -167,12 +187,18 @@ export default async function PlanSettingsPage(props: Props) {
 
           <h2>Name</h2>
           <form action={renamePlan.bind(null, plan.id)} className="row">
-            <input type="text" name="name" defaultValue={plan.name} required maxLength={100} style={{ flex: "1 1 14rem" }} />
+            <input
+              type="text"
+              name="name"
+              defaultValue={plan.name}
+              required
+              maxLength={100}
+              style={{ flex: "1 1 14rem" }}
+            />
             <button type="submit" className="secondary">
               Speichern
             </button>
           </form>
-
         </>
       ) : (
         <form action={leavePlan.bind(null, plan.id)} style={{ marginTop: "2rem" }}>

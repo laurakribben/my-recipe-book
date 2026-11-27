@@ -66,32 +66,11 @@ export default async function BookSettingsPage(props: Props) {
       {ok && <p className="notice success">{ok}</p>}
       {error && <p className="notice error">{error}</p>}
 
-      {isOwner && (
-        <section id="teilen">
-          <h2>Teilen</h2>
-          <form action={shareBook.bind(null, book.id)} className="stack">
-            <label>
-              <span>E-Mail-Adresse</span>
-              <input type="email" name="email" required />
-            </label>
-            <div className="row">
-              <select name="role" defaultValue="viewer" style={{ width: "auto" }}>
-                <option value="viewer">{ROLE_LABELS.viewer}</option>
-                <option value="editor">{ROLE_LABELS.editor}</option>
-              </select>
-              <button type="submit">Teilen</button>
-            </div>
-            <p className="hint">
-              Hat die Person noch kein Konto, bekommt sie eine Einladung per E-Mail und sieht das Buch nach der ersten
-              Anmeldung.
-            </p>
-          </form>
-        </section>
-      )}
-
-      <h2 id={isOwner ? undefined : "teilen"}>Mitglieder</h2>
+      <h2 id="teilen">Mitglieder</h2>
+      {/* The invite fields sit in the last table row; a <form> can't wrap a row, so they use form="invite". */}
+      {isOwner && <form id="invite" action={shareBook.bind(null, book.id)} />}
       <div className="table-wrap">
-        <table>
+        <table className="members-table">
           <tbody>
             {(members ?? []).map((m) => {
               const profile = m.profiles as unknown as { email: string; display_name: string | null } | null;
@@ -121,7 +100,12 @@ export default async function BookSettingsPage(props: Props) {
                   <td>
                     {editable && (
                       <form action={removeMember.bind(null, book.id, m.user_id)} className="member-actions">
-                        <button type="submit" className="danger icon-button" aria-label="Mitglied entfernen" title="Mitglied entfernen">
+                        <button
+                          type="submit"
+                          className="danger icon-button"
+                          aria-label="Mitglied entfernen"
+                          title="Mitglied entfernen"
+                        >
                           <TrashIcon />
                         </button>
                       </form>
@@ -138,16 +122,52 @@ export default async function BookSettingsPage(props: Props) {
                 <td>{ROLE_LABELS[i.role as BookRole]}</td>
                 <td>
                   <form action={withdrawInvite.bind(null, book.id, i.id)} className="member-actions">
-                    <button type="submit" className="danger icon-button" aria-label="Einladung zurückziehen" title="Einladung zurückziehen">
+                    <button
+                      type="submit"
+                      className="danger icon-button"
+                      aria-label="Einladung zurückziehen"
+                      title="Einladung zurückziehen"
+                    >
                       <TrashIcon />
                     </button>
                   </form>
                 </td>
               </tr>
             ))}
+            {isOwner && (
+              <tr className="invite-row">
+                <td>
+                  <input
+                    type="email"
+                    name="email"
+                    form="invite"
+                    required
+                    placeholder="E-Mail-Adresse"
+                    aria-label="E-Mail-Adresse der neuen Person"
+                  />
+                </td>
+                <td>
+                  <select name="role" form="invite" defaultValue="viewer" aria-label="Rolle">
+                    <option value="viewer">{ROLE_LABELS.viewer}</option>
+                    <option value="editor">{ROLE_LABELS.editor}</option>
+                  </select>
+                </td>
+                <td>
+                  <button type="submit" form="invite" className="btn-small">
+                    Einladen
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+      {isOwner && (
+        <p className="hint">
+          Hat die Person noch kein Konto, bekommt sie eine Einladung per E-Mail und sieht das Buch nach der ersten
+          Anmeldung.
+        </p>
+      )}
 
       <div id="einstellungen" />
       {completion && (
@@ -158,7 +178,14 @@ export default async function BookSettingsPage(props: Props) {
         <>
           <h2>Name</h2>
           <form action={renameBook.bind(null, book.id)} className="row">
-            <input type="text" name="name" defaultValue={book.name} required maxLength={100} style={{ flex: "1 1 14rem" }} />
+            <input
+              type="text"
+              name="name"
+              defaultValue={book.name}
+              required
+              maxLength={100}
+              style={{ flex: "1 1 14rem" }}
+            />
             <button type="submit" className="secondary">
               Speichern
             </button>
@@ -167,8 +194,8 @@ export default async function BookSettingsPage(props: Props) {
           <h2>Buch löschen</h2>
           <form action={deleteBook.bind(null, book.id)} className="stack">
             <p className="small muted">
-              Löscht das Buch mit allen Rezepten für alle Mitglieder. Das kann nicht rückgängig gemacht werden. Tippe zur
-              Bestätigung den Namen des Buchs ein.
+              Löscht das Buch mit allen Rezepten für alle Mitglieder. Das kann nicht rückgängig gemacht werden. Tippe
+              zur Bestätigung den Namen des Buchs ein.
             </p>
             <div className="row">
               <input type="text" name="confirm" required placeholder={book.name} style={{ flex: "1 1 14rem" }} />

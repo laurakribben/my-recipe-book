@@ -255,6 +255,18 @@ table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
 td, th { text-align: left; padding: 0.5rem 0.25rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
 td form { margin: 0; }
 .table-wrap { overflow-x: auto; }
+.invite-row td { border-bottom: none; padding-top: 0.75rem; }
+.invite-row input { width: 100%; min-width: 9rem; }
+.invite-row select { width: auto; }
+/* Phones: each member as a small block – name on top, role and actions below. */
+@media (max-width: 600px) {
+  .members-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.25rem 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--line); }
+  .members-table td { padding: 0; border: none; }
+  .members-table td:first-child { grid-column: 1 / -1; }
+  .members-table td:empty { display: none; }
+  .members-table .invite-row { border-bottom: none; padding-top: 0.75rem; }
+  .members-table .invite-row select { width: 100%; }
+}
 
 /* ---------------------------------------------------------------- cooking mode */
 
