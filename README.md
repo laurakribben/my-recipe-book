@@ -11,6 +11,10 @@ A recipe book that turns links (Instagram, websites, videos) into clean recipes.
 
 Open issues = links still waiting. Closed issues = done.
 
+**Instagram links:** Claude can't open Instagram from a cloud session. Paste the prompt from
+`docs/extraction-prompt.md` into a normal Claude chat (with Claude in Chrome or screenshots),
+then paste the answer back to Claude Code or as a comment on the issue.
+
 ## Structure
 
 | Path | Purpose |

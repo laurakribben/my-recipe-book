@@ -13,6 +13,10 @@ and GitHub Pages builds the website from it with Jekyll (no build step to run by
      comment, follow or message. Keep batches small.
    - Websites: prefer the page's `schema.org/Recipe` data, otherwise the visible recipe.
    - YouTube: description and transcript.
+   If a link can't be opened (Instagram from a cloud session), give the user the prompt in
+   `docs/extraction-prompt.md` with the link filled in, and work from the answer they paste
+   back (in chat or as an issue comment). That file also lists how the answer maps onto a
+   recipe file.
 3. Write `_recipes/<short-name>.md` following `docs/recipe-template.md` exactly
    (front matter fields, ingredient groups, steps). Keep the creator's amounts and units.
 4. Never guess amounts or steps. If something is missing (e.g. only spoken in the video),
