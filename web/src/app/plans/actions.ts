@@ -1,6 +1,5 @@
 "use server";
 
-import { recordAiUsage } from "@/lib/ai-usage";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -9,6 +8,9 @@ import { addDays, formatDay, getPlanForUser, isIsoDate, isMeal, today, weekStart
 import type { Recipe } from "@/lib/recipe";
 import { parseServings, scaleIngredient } from "@/lib/servings";
 import { assignAisles } from "@/lib/aisles";
+import { imageUrl } from "@/lib/images";
+import { aiCallsLeft, recordAiUsage } from "@/lib/ai-usage";
+import { estimateDishNutrition } from "@/lib/nutrition-ai";
 import { shareWithEmail } from "@/lib/sharing";
 import { createClient, getUser } from "@/lib/supabase/server";
 
@@ -101,6 +103,16 @@ export async function updateEntry(planId: string, entryId: string, formData: For
   const day = String(formData.get("day") ?? "");
   if (!isUuid(entryId) || !isIsoDate(day)) redirect(`/plans/${planId}`);
   const supabase = await createClient();
+  const ingredients = parseIngredientLines(formData.get("ingredients"));
+  const { data: before } = await supabase
+    .from("meal_plan_entries")
+    .select("recipe_id, ingredients")
+    .eq("id", entryId)
+    .eq("plan_id", planId)
+    .maybeSingle();
+  // A free entry with other ingredients gets a new nutrition estimate (see estimateEntryNutrition).
+  const reestimate =
+    before && !before.recipe_id && JSON.stringify(before.ingredients ?? []) !== JSON.stringify(ingredients);
   await supabase
     .from("meal_plan_entries")
     .update({
@@ -108,7 +120,8 @@ export async function updateEntry(planId: string, entryId: string, formData: For
       meal: parseMeal(formData.get("meal")),
       servings: parseServingsField(formData.get("servings")),
       note: String(formData.get("note") ?? "").trim().slice(0, 500) || null,
-      ingredients: parseIngredientLines(formData.get("ingredients")),
+      ingredients,
+      ...(reestimate ? { nutrition: null, nutrition_checked: false } : {}),
     })
     .eq("id", entryId)
     .eq("plan_id", planId);
@@ -642,7 +655,11 @@ export async function planIdeaAt(planId: string, ideaId: string, day: string, me
 
 // ---------------------------------------------------------------- recipe choice for the add dialog
 
-export type RecipeGroup = { book: string; recipes: { id: string; title: string }[] };
+export type RecipeGroup = {
+  bookId: string;
+  book: string;
+  recipes: { id: string; title: string; image: string | null }[];
+};
 
 /**
  * Recipes the user can plan, grouped by book: those in their own and shared books (without the
@@ -653,20 +670,77 @@ export async function loadPlannableRecipes(): Promise<RecipeGroup[]> {
   const user = await getUser();
   if (!user) return [];
   const supabase = await createClient();
-  const { data: memberships } = await supabase.from("book_members").select("book_id").eq("user_id", user.id);
-  const bookIds = (memberships ?? []).map((m) => m.book_id);
-  if (bookIds.length === 0) return [];
+  const { data: memberships } = await supabase
+    .from("book_members")
+    .select("book_id, books (name)")
+    .eq("user_id", user.id)
+    .order("created_at");
+  const books = (memberships ?? []).map((m) => ({
+    bookId: m.book_id as string,
+    book: (m.books as unknown as { name: string } | null)?.name ?? "Rezepte",
+  }));
+  if (books.length === 0) return [];
   const { data } = await supabase
     .from("recipes")
-    .select("id, title, books (name)")
-    .in("book_id", bookIds)
+    .select("id, title, book_id, image_path")
+    .in(
+      "book_id",
+      books.map((b) => b.bookId),
+    )
     .order("title")
     .limit(1000);
-  const byBook = new Map<string, RecipeGroup["recipes"]>();
-  for (const r of data ?? []) {
-    const book = (r.books as unknown as { name: string } | null)?.name ?? "Rezepte";
-    if (!byBook.has(book)) byBook.set(book, []);
-    byBook.get(book)!.push({ id: r.id, title: r.title });
-  }
-  return [...byBook.entries()].map(([book, recipes]) => ({ book, recipes }));
+  return books.map((b) => ({
+    ...b,
+    recipes: (data ?? [])
+      .filter((r) => r.book_id === b.bookId)
+      .map((r) => ({ id: r.id, title: r.title, image: imageUrl(r.image_path) })),
+  }));
+}
+
+// ---------------------------------------------------------------- nutrition of free entries
+
+/** Free entries estimated per call; they run at the same time. */
+const ESTIMATE_BATCH = 6;
+
+/**
+ * Estimates nutrition for free entries (no recipe) of the shown week that haven't been
+ * estimated yet – new ones and those from before this feature. Called by the plan page in
+ * the background; returns how many were estimated, so the page knows whether to refresh.
+ */
+export async function estimateEntryNutrition(planId: string, days: string[]): Promise<number> {
+  const { user } = await requireEditor(planId);
+  if (days.length === 0 || days.length > 7 || !days.every(isIsoDate)) return 0;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("meal_plan_entries")
+    .select("id, title, ingredients")
+    .eq("plan_id", planId)
+    .is("recipe_id", null)
+    .eq("nutrition_checked", false)
+    .in("day", days)
+    .limit(ESTIMATE_BATCH);
+  const todo = data ?? [];
+  if (todo.length === 0) return 0;
+  const left = await aiCallsLeft(user.id, "complete");
+  if (left <= 0) return 0;
+
+  const results = await Promise.all(
+    todo.slice(0, left).map(async (e) => {
+      try {
+        const { nutrition, usage } = await estimateDishNutrition(e.title, e.ingredients ?? []);
+        await recordAiUsage(user.id, "complete", usage);
+        await supabase
+          .from("meal_plan_entries")
+          .update({ nutrition, nutrition_checked: true })
+          .eq("id", e.id)
+          .eq("plan_id", planId);
+        return true;
+      } catch (error) {
+        console.error("Estimating a plan entry failed", error instanceof Error ? error.message : error);
+        return false;
+      }
+    }),
+  );
+  revalidatePath(`/plans/${planId}`);
+  return results.filter(Boolean).length;
 }

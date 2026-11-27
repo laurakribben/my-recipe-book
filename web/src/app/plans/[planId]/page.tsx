@@ -18,8 +18,10 @@ import {
 } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 import { UndoableRemove } from "@/components/toast";
-import { SettingsIcon, ShareIcon } from "@/components/icons";
+import { BackIcon, CalendarPlusIcon, CartIcon, ForwardIcon, SettingsIcon, ShareIcon } from "@/components/icons";
+import { IconPopover, MoreMenu } from "@/components/more-menu";
 import { AddEntryDialog } from "@/components/plan-dialogs";
+import { EstimateInBackground } from "./estimate-in-background";
 import { DraggableIdea } from "./draggable-idea";
 import { WeekTable } from "./week-table";
 import { WeekBalance } from "@/components/balance-view";
@@ -28,6 +30,7 @@ import { getProfile } from "@/lib/profile";
 import {
   addEntry,
   loadPlannableRecipes,
+  estimateEntryNutrition,
   addWeekToShopping,
   deleteIdea,
   moveIdea,
@@ -63,7 +66,7 @@ export default async function PlanWeekPage(props: Props) {
   const [{ data: entryRows }, profile, { data: ideaRows }, plans] = await Promise.all([
     supabase
       .from("meal_plan_entries")
-      .select("id, plan_id, day, meal, position, recipe_id, title, servings, note, ingredients, created_at")
+      .select("id, plan_id, day, meal, position, recipe_id, title, servings, note, ingredients, nutrition, nutrition_checked, created_at")
       .eq("plan_id", plan.id)
       .gte("day", days[0])
       .lte("day", days[6])
@@ -74,6 +77,7 @@ export default async function PlanWeekPage(props: Props) {
     getMyPlans(user.id),
   ]);
   const entries = (entryRows ?? []) as PlanEntry[];
+  const hasShoppingItems = entries.some((e) => e.recipe_id || (e.ingredients ?? []).length > 0);
 
   // Nutrition balance per day and for the week (personal setting, on by default).
   const showBalance = profile?.showNutritionBalance ?? true;
@@ -85,13 +89,17 @@ export default async function PlanWeekPage(props: Props) {
   const nutritionById = new Map((nutritionRows ?? []).map((r) => [r.id, r]));
   const balanceItems = (list: PlanEntry[]) =>
     list.map((e) => {
-      const r = e.recipe_id ? nutritionById.get(e.recipe_id) : undefined;
+      // Free entries carry their own estimate for one portion.
+      if (!e.recipe_id) return { nutrition: e.nutrition ?? null, servings: null };
+      const r = nutritionById.get(e.recipe_id);
       return { nutrition: r?.nutrition ?? null, servings: r?.servings ?? null };
     });
   const dayBalances = showBalance
     ? Object.fromEntries(days.map((d) => [d, computeBalance(balanceItems(entries.filter((e) => e.day === d)))]))
     : null;
   const weekBalance = showBalance ? computeBalance(balanceItems(entries)) : null;
+  // Free entries of this week without an estimate yet; the page estimates them in the background.
+  const unestimated = entries.filter((e) => !e.recipe_id && !e.nutrition_checked).length;
 
   // Idea lists: everything up to this week is "Diese Woche" (left-overs included), later is "Nächste Woche".
   const nextWeek = addDays(thisWeek, 7);
@@ -107,24 +115,23 @@ export default async function PlanWeekPage(props: Props) {
       <div className="title-row">
         <h1>{plan.name}</h1>
         <div className="title-actions">
-          <Link
-            href={`/plans/${plan.id}/settings#teilen`}
-            className="button secondary icon-button"
-            aria-label={role === "owner" ? "Teilen" : "Mitglieder"}
-            title={role === "owner" ? "Teilen" : "Mitglieder"}
-          >
-            <ShareIcon />
-          </Link>
-          {role === "owner" && (
-            <Link
-              href={`/plans/${plan.id}/settings#einstellungen`}
-              className="button secondary icon-button"
-              aria-label="Einstellungen"
-              title="Einstellungen"
-            >
-              <SettingsIcon />
+          <MoreMenu>
+            {editable && hasShoppingItems && (
+              <form action={addWeekToShopping.bind(null, plan.id, weekStart)}>
+                <button type="submit" role="menuitem">
+                  <CartIcon /> Einkaufsliste für diese Woche
+                </button>
+              </form>
+            )}
+            <Link href={`/plans/${plan.id}/settings#teilen`} role="menuitem">
+              <ShareIcon /> {role === "owner" ? "Teilen" : "Mitglieder"}
             </Link>
-          )}
+            {role === "owner" && (
+              <Link href={`/plans/${plan.id}/settings#einstellungen`} role="menuitem">
+                <SettingsIcon /> Einstellungen
+              </Link>
+            )}
+          </MoreMenu>
         </div>
       </div>
       {plans.length > 1 && (
@@ -155,54 +162,58 @@ export default async function PlanWeekPage(props: Props) {
                 <DraggableIdea key={idea.id} id={idea.id} title={idea.title} recipeId={idea.recipe_id} enabled={editable}>
                   {idea.recipe_id ? <Link href={`/recipes/${idea.recipe_id}`}>{idea.title}</Link> : <span>{idea.title}</span>}
                   {editable && (
-                    <details className="disclosure">
-                      <summary>Einplanen</summary>
-                      <form action={planIdea.bind(null, plan.id, idea.id)} className="grid-2">
-                        <label className="field">
-                          <span>Tag</span>
-                          <select name="day" defaultValue={list === "this" && todayDate >= start ? todayDate : start}>
-                            {weekDays(start).map((d) => (
-                              <option key={d} value={d}>
-                                {formatDay(d)}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="field">
-                          <span>Mahlzeit</span>
-                          <select name="meal" defaultValue="abends">
-                            {MEALS.map((x) => (
-                              <option key={x.id} value={x.id}>
-                                {x.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="field">
-                          <span>Portionen</span>
-                          <input type="number" name="servings" min={1} max={100} step="any" placeholder="wie im Rezept" />
-                        </label>
-                        <label className="field">
-                          <span>Notiz (optional)</span>
-                          <input type="text" name="note" maxLength={500} placeholder="z. B. doppelte Menge Sauce" />
-                        </label>
-                        <div className="row">
-                          <button type="submit">Einplanen</button>
-                        </div>
-                      </form>
-                      <div className="row small">
-                        <form action={moveIdea.bind(null, plan.id, idea.id, list === "this" ? "next" : "this")}>
-                          <button type="submit" className="secondary btn-small">
-                            {list === "this" ? "→ Nächste Woche" : "← Diese Woche"}
-                          </button>
+                    <span className="idea-actions">
+                      <IconPopover icon={<CalendarPlusIcon />} label="Einplanen">
+                        <form action={planIdea.bind(null, plan.id, idea.id)} className="grid-2">
+                          <label className="field">
+                            <span>Tag</span>
+                            <select name="day" defaultValue={list === "this" && todayDate >= start ? todayDate : start}>
+                              {weekDays(start).map((d) => (
+                                <option key={d} value={d}>
+                                  {formatDay(d)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="field">
+                            <span>Mahlzeit</span>
+                            <select name="meal" defaultValue="abends">
+                              {MEALS.map((x) => (
+                                <option key={x.id} value={x.id}>
+                                  {x.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="field">
+                            <span>Portionen</span>
+                            <input type="number" name="servings" min={1} max={100} step="any" placeholder="wie im Rezept" />
+                          </label>
+                          <label className="field">
+                            <span>Notiz (optional)</span>
+                            <input type="text" name="note" maxLength={500} />
+                          </label>
+                          <div className="row">
+                            <button type="submit">Einplanen</button>
+                          </div>
                         </form>
-                        <UndoableRemove
-                          remove={deleteIdea.bind(null, plan.id, idea.id)}
-                          restore={restoreIdea.bind(null, plan.id)}
-                          message={`„${idea.title}“ entfernt.`}
-                        />
-                      </div>
-                    </details>
+                      </IconPopover>
+                      <form action={moveIdea.bind(null, plan.id, idea.id, list === "this" ? "next" : "this")}>
+                        <button
+                          type="submit"
+                          className="secondary icon-button"
+                          aria-label={list === "this" ? "In „Nächste Woche“ verschieben" : "In „Diese Woche“ verschieben"}
+                          title={list === "this" ? "In „Nächste Woche“ verschieben" : "In „Diese Woche“ verschieben"}
+                        >
+                          {list === "this" ? <ForwardIcon /> : <BackIcon />}
+                        </button>
+                      </form>
+                      <UndoableRemove
+                        remove={deleteIdea.bind(null, plan.id, idea.id)}
+                        restore={restoreIdea.bind(null, plan.id)}
+                        message={`„${idea.title}“ entfernt.`}
+                      />
+                    </span>
                   )}
                 </DraggableIdea>
               ))}
@@ -272,15 +283,11 @@ export default async function PlanWeekPage(props: Props) {
         dayBalances={dayBalances}
       />
 
+      {editable && showBalance && unestimated > 0 && (
+        <EstimateInBackground key={unestimated} run={estimateEntryNutrition.bind(null, plan.id, days)} />
+      )}
       {/* Below the table: the week's summary and what to do with it. */}
       {weekBalance && <WeekBalance balance={weekBalance} />}
-      {editable && entries.some((e) => e.recipe_id || (e.ingredients ?? []).length > 0) && (
-        <form action={addWeekToShopping.bind(null, plan.id, weekStart)} className="toolbar">
-          <button type="submit" className="secondary">
-            Einkaufsliste für diese Woche
-          </button>
-        </form>
-      )}
     </>
   );
 }

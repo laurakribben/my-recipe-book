@@ -27,6 +27,10 @@ export type PlanEntry = {
   note: string | null;
   /** Typed-in ingredients (besides the recipe's), one per item. */
   ingredients: string[];
+  /** Free entries only: AI estimate for one portion (null if none or not a dish). */
+  nutrition: unknown;
+  /** Free entries only: the estimate was tried. */
+  nutrition_checked: boolean;
   created_at: string;
 };
 

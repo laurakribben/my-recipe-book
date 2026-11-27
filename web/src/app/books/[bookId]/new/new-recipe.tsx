@@ -5,12 +5,14 @@ import { RecipeForm } from "@/components/recipe-form";
 import { EMPTY_DRAFT, type RecipeDraft } from "@/lib/recipe";
 import { shrinkImage } from "@/lib/shrink-image";
 import { AiProgress } from "@/components/ai-progress";
-import type { ExtractState, SaveState } from "@/app/recipes/actions";
+import type { ExtractState, ImportResult, SaveState } from "@/app/recipes/actions";
+import { MultiImport } from "./multi-import";
 
-type Mode = "link" | "text" | "images" | "manual";
+type Mode = "link" | "multi" | "text" | "images" | "manual";
 
 const MODES: { id: Mode; label: string }[] = [
   { id: "link", label: "Link" },
+  { id: "multi", label: "Mehrere Links" },
   { id: "text", label: "Text" },
   { id: "images", label: "Fotos" },
   { id: "manual", label: "Von Hand" },
@@ -19,10 +21,12 @@ const MODES: { id: Mode; label: string }[] = [
 type Props = {
   extract: (prev: ExtractState, formData: FormData) => Promise<ExtractState>;
   save: (prev: SaveState, formData: FormData) => Promise<SaveState>;
+  importLink: (url: string, targetServings: number | null) => Promise<ImportResult>;
+  bookHref: string;
   startMode?: Mode;
 };
 
-export function NewRecipe({ extract, save, startMode = "link" }: Props) {
+export function NewRecipe({ extract, save, importLink, bookHref, startMode = "link" }: Props) {
   const [mode, setMode] = useState<Mode>(startMode);
   const [draft, setDraft] = useState<RecipeDraft | null>(null);
   const [state, extractAction, pending] = useActionState(async (prev: ExtractState, formData: FormData) => {
@@ -62,7 +66,9 @@ export function NewRecipe({ extract, save, startMode = "link" }: Props) {
         ))}
       </div>
 
-      {mode === "manual" ? (
+      {mode === "multi" ? (
+        <MultiImport importLink={importLink} bookHref={bookHref} />
+      ) : mode === "manual" ? (
         <button type="button" onClick={() => setDraft({ ...EMPTY_DRAFT })}>
           Leeres Rezept öffnen
         </button>

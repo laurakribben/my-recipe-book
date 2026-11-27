@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { EditIcon, PlusIcon } from "@/components/icons";
+import Image from "next/image";
+import { BackIcon, EditIcon, PlusIcon } from "@/components/icons";
 
 // ---------------------------------------------------------------- shared dialog shell
 
@@ -9,11 +10,13 @@ function Dialog({
   open,
   onClose,
   title,
+  wide = false,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  wide?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -27,7 +30,7 @@ function Dialog({
   return (
     <dialog
       ref={ref}
-      className="plan-dialog"
+      className={wide ? "plan-dialog wide" : "plan-dialog"}
       aria-label={title}
       onClose={onClose}
       // A click on the dark backdrop (outside the box) closes it.
@@ -71,11 +74,15 @@ export function AddEntryButton({ day, meal, label }: { day: string; meal: string
   );
 }
 
-type RecipeGroup = { book: string; recipes: { id: string; title: string }[] };
+type RecipeGroup = { bookId: string; book: string; recipes: { id: string; title: string; image: string | null }[] };
+
+// The chosen book is kept while the page is open, so the next "+" starts there.
+let lastBookId: string | null = null;
 
 /**
- * The add form, rendered once per page. The recipe choice is loaded when the dialog first
- * opens (it can be long), then kept for the rest of the visit.
+ * The add dialog, rendered once per page: a gallery of one recipe book's recipes (book chosen
+ * top left), a tap adds the recipe right away. Top right switches to a free entry. The recipes
+ * are loaded when the dialog first opens, then kept for the rest of the visit.
  */
 export function AddEntryDialog({
   action,
@@ -92,65 +99,133 @@ export function AddEntryDialog({
     () => target,
     () => null,
   );
-  const [recipeGroups, setRecipeGroups] = useState<RecipeGroup[] | null>(null);
+  const [groups, setGroups] = useState<RecipeGroup[] | null>(null);
+  const [bookId, setBookId] = useState<string | null>(lastBookId);
+  const [query, setQuery] = useState("");
+  const [freeEntry, setFreeEntry] = useState(false);
   const open = current !== null;
+
   useEffect(() => {
-    if (!open || recipeGroups !== null) return;
+    if (!open || groups !== null) return;
     let cancelled = false;
     loadRecipes()
-      .then((groups) => !cancelled && setRecipeGroups(groups))
-      .catch(() => !cancelled && setRecipeGroups([]));
+      .then((g) => !cancelled && setGroups(g))
+      .catch(() => !cancelled && setGroups([]));
     return () => {
       cancelled = true;
     };
-  }, [open, recipeGroups, loadRecipes]);
+  }, [open, groups, loadRecipes]);
+
+  function close() {
+    setTarget(null);
+    setFreeEntry(false);
+    setQuery("");
+  }
+
+  const group = groups?.find((g) => g.bookId === bookId) ?? groups?.[0] ?? null;
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const recipes = (group?.recipes ?? []).filter((r) => words.every((w) => r.title.toLowerCase().includes(w)));
+  const hidden = (
+    <>
+      <input type="hidden" name="day" value={current?.day ?? ""} />
+      <input type="hidden" name="meal" value={current?.meal ?? ""} />
+    </>
+  );
 
   return (
-    <Dialog open={current !== null} onClose={() => setTarget(null)} title={current ? `Gericht hinzufügen – ${current.label}` : ""}>
-      {/* key: a fresh, empty form for every cell */}
-      <form action={action} key={current ? `${current.day}-${current.meal}` : "none"}>
-        <input type="hidden" name="day" value={current?.day ?? ""} />
-        <input type="hidden" name="meal" value={current?.meal ?? ""} />
-        <label className="field">
-          <span>Rezept</span>
-          <select name="recipe_id" defaultValue="" aria-busy={recipeGroups === null}>
-            <option value="">
-              {recipeGroups === null ? "Rezepte werden geladen…" : "– kein Rezept, freier Eintrag –"}
-            </option>
-            {(recipeGroups ?? []).map((g) => (
-              <optgroup key={g.book} label={g.book}>
-                {g.recipes.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.title}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>oder freier Eintrag</span>
-          <input type="text" name="title" maxLength={200} placeholder="z. B. Reste, Essen gehen" />
-        </label>
-        <div className="grid-2">
+    <Dialog open={open} onClose={close} title={current ? `Gericht hinzufügen – ${current.label}` : ""} wide={!freeEntry}>
+      {freeEntry ? (
+        // key: a fresh, empty form for every cell
+        <form action={action} key={current ? `${current.day}-${current.meal}` : "none"}>
+          {hidden}
+          <div className="dialog-toolbar">
+            <button type="button" className="secondary icon-button" aria-label="Zurück zu den Rezepten" title="Zurück zu den Rezepten" onClick={() => setFreeEntry(false)}>
+              <BackIcon />
+            </button>
+            <strong>Eigener Eintrag</strong>
+          </div>
           <label className="field">
-            <span>Portionen (optional)</span>
-            <input type="number" name="servings" min={1} max={100} step="any" placeholder="wie im Rezept" />
+            <span>Was gibt es?</span>
+            <input type="text" name="title" required maxLength={200} placeholder="z. B. Pizza, Reste, Essen gehen" autoFocus />
           </label>
+          <div className="grid-2">
+            <label className="field">
+              <span>Portionen (optional)</span>
+              <input type="number" name="servings" min={1} max={100} step="any" />
+            </label>
+            <label className="field">
+              <span>Notiz (optional)</span>
+              <input type="text" name="note" maxLength={500} />
+            </label>
+          </div>
           <label className="field">
-            <span>Notiz (optional)</span>
-            <input type="text" name="note" maxLength={500} placeholder="z. B. Tofu statt Hähnchen" />
+            <span>Zutaten (optional)</span>
+            <textarea name="ingredients" rows={3} placeholder={"z. B. 6 Würstchen\n2 Baguettes\nSenf"} />
+            <span className="hint">Eine pro Zeile. Sie kommen mit auf die Einkaufsliste; die Nährwerte schätzt die KI.</span>
           </label>
-        </div>
-        <label className="field">
-          <span>Zutaten (optional)</span>
-          <textarea name="ingredients" rows={3} placeholder={"z. B. 6 Würstchen\n2 Baguettes\nSenf"} />
-          <span className="hint">
-            Eine pro Zeile – z. B. für einen freien Eintrag oder Extras zum Rezept. Sie kommen mit auf die Einkaufsliste.
-          </span>
-        </label>
-        <button type="submit">Hinzufügen</button>
-      </form>
+          <button type="submit">Hinzufügen</button>
+        </form>
+      ) : (
+        <form action={action}>
+          {hidden}
+          <div className="dialog-toolbar">
+            <label className="visually-hidden" htmlFor="add-book">
+              Rezeptbuch
+            </label>
+            <select
+              id="add-book"
+              value={group?.bookId ?? ""}
+              disabled={!groups || groups.length === 0}
+              onChange={(e) => {
+                lastBookId = e.target.value;
+                setBookId(e.target.value);
+              }}
+            >
+              {groups === null && <option value="">Wird geladen…</option>}
+              {groups?.map((g) => (
+                <option key={g.bookId} value={g.bookId}>
+                  {g.book} ({g.recipes.length})
+                </option>
+              ))}
+            </select>
+            <button type="button" className="secondary btn-small" onClick={() => setFreeEntry(true)}>
+              <EditIcon /> Eigener Eintrag
+            </button>
+          </div>
+          {group && group.recipes.length > 8 && (
+            <input
+              type="search"
+              className="gallery-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`In „${group.book}“ suchen`}
+              aria-label="Rezepte durchsuchen"
+            />
+          )}
+          {groups === null ? (
+            <p className="muted">Rezepte werden geladen…</p>
+          ) : recipes.length === 0 ? (
+            <p className="empty">{query ? "Kein Rezept gefunden." : "In diesem Buch sind noch keine Rezepte."}</p>
+          ) : (
+            <ul className="recipe-grid gallery">
+              {recipes.map((r) => (
+                <li key={r.id}>
+                  <button type="submit" name="recipe_id" value={r.id} className="recipe-card gallery-card">
+                    <span className="recipe-card-image">
+                      {r.image ? (
+                        <Image src={r.image} alt="" fill sizes="160px" />
+                      ) : (
+                        <span aria-hidden="true">{r.title.slice(0, 1).toUpperCase()}</span>
+                      )}
+                    </span>
+                    <span className="recipe-card-title">{r.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </form>
+      )}
     </Dialog>
   );
 }

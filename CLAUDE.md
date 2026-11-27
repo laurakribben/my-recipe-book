@@ -14,6 +14,12 @@ primary button (`button` / `.button`, the main action), `.secondary` (other acti
 `.btn-small` for actions inside lists, `.icon-button` for symbol-only buttons (with an
 aria-label), `details.disclosure` for expandable forms, `.toolbar` for a page's action row.
 Labels (`.badge`, tags) are never clickable. Note: `.small` is a text size, not a button size.
+Prefer icons over text buttons (the owner's wish): actions are `.icon-button`s with an SVG from
+`src/components/icons.tsx`, an `aria-label` and a `title` tooltip. Use text only where an icon
+wouldn't be understood: buttons that submit a filled-in form ("Speichern", "Hinzufügen"), final
+deleting/leaving, and labels like "Erledigte entfernen". Several actions go into a "⋯" `MoreMenu`;
+small forms open from an icon via `IconPopover` (`src/components/more-menu.tsx`). No arrow
+triangles in front of buttons.
 
 The extraction prompt in `web/src/lib/extract.ts` follows the same recipe rules as below
 (German, never guess, keep amounts); keep the two in sync. One deliberate exception: nutrition facts

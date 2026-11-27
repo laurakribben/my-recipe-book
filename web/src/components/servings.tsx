@@ -1,5 +1,6 @@
 "use client";
 
+import { ResetIcon } from "@/components/icons";
 import { useEffect, useSyncExternalStore } from "react";
 import type { IngredientGroup } from "@/lib/recipe";
 import { FACTOR_STEPS, formatAmount, scaleIngredient } from "@/lib/servings";
@@ -84,8 +85,14 @@ export function ServingsControl({
         +
       </button>
       {factor !== 1 && (
-        <button type="button" className="secondary btn-small" onClick={() => onChange(1)}>
-          Original
+        <button
+          type="button"
+          className="secondary icon-button"
+          onClick={() => onChange(1)}
+          aria-label="Zurück zur Originalmenge"
+          title="Zurück zur Originalmenge"
+        >
+          <ResetIcon />
         </button>
       )}
     </div>

@@ -72,7 +72,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
    `supabase/migrations/0011_entry_ingredients.sql` (ingredients typed in for plan entries) and
    `supabase/migrations/0012_nutrition.sql` (nutrition facts of recipes) and
    `supabase/migrations/0013_balance_setting.sql` (personal switch for the nutrition balance),
-   `supabase/migrations/0014_ai_usage_kind.sql` (separate AI limits for extracting and completing).
+   `supabase/migrations/0014_ai_usage_kind.sql` (separate AI limits for extracting and completing),
+   `supabase/migrations/0015_entry_nutrition.sql` (estimated nutrition for free meal plan entries).
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address

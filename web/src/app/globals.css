@@ -96,8 +96,10 @@ main { padding-bottom: 4rem; }
 .header-menu-button:hover { background: color-mix(in srgb, var(--accent-text) 15%, transparent); }
 .header-login { color: inherit; font-weight: 600; }
 .site-header :focus-visible { outline-color: var(--accent-text); }
-.header-menu { width: 12rem; padding: 0.4rem; color: var(--text); }
-.header-menu a, .header-menu button {
+.header-menu, .popover.menu { width: 12rem; padding: 0.4rem; color: var(--text); }
+.popover.menu { width: max-content; min-width: 12rem; max-width: calc(100vw - 32px); }
+.header-menu a, .header-menu button, .popover.menu a, .popover.menu button {
+  gap: 0.6rem;
   display: flex;
   width: 100%;
   min-height: 2.5rem;
@@ -111,8 +113,9 @@ main { padding-bottom: 4rem; }
   font-size: 1rem;
   text-decoration: none;
 }
-.header-menu a:hover, .header-menu button:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-.header-menu form { margin: 0; }
+.header-menu a:hover, .header-menu button:hover, .popover.menu a:hover, .popover.menu button:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.header-menu form, .popover.menu form { margin: 0; }
+.popover.menu svg { flex: none; color: var(--accent); }
 @media (max-width: 720px) {
   .header-nav { display: none; } /* phones use the tab bar */
   .brand { font-size: 1.05rem; }
@@ -230,9 +233,8 @@ button.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--error)
 
 /* Expandable sections ("+ Gericht", "Ändern" …) look like small secondary buttons with an arrow. */
 details.disclosure > summary { list-style: none; }
+details.disclosure > summary.icon-summary { width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%; justify-content: center; }
 details.disclosure > summary::-webkit-details-marker { display: none; }
-details.disclosure > summary::before { content: "▸"; font-size: 0.8em; }
-details.disclosure[open] > summary::before { content: "▾"; }
 
 
 
@@ -247,7 +249,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 .tabs button { background: transparent; color: var(--accent); }
 .tabs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
 
-.card { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; background: var(--surface); }
+.card { border: 1px solid var(--line); border-radius: 12px; padding: 1rem; background: var(--surface); }
 
 table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
 td, th { text-align: left; padding: 0.5rem 0.25rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
@@ -348,12 +350,13 @@ td form { margin: 0; }
 
 .cook-nav {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: auto 1fr;
   gap: 0.75rem;
   padding: 0.75rem 16px calc(0.75rem + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
 }
 .cook-nav button { padding: 1rem; font-size: 1.15rem; }
+.cook-nav .icon-button { width: 3.5rem; min-width: 3.5rem; height: 3.5rem; padding: 0; }
 
 .cook-ingredients ul { list-style: none; padding: 0; }
 .cook-ingredients li { margin: 0; border-bottom: 1px solid var(--line); }
@@ -417,6 +420,12 @@ td form { margin: 0; }
 .image-credit { margin: 0 0 1.25rem; font-size: 0.8rem; color: var(--muted); text-align: right; word-break: break-word; }
 .image-credit a { color: inherit; }
 .cook-image { aspect-ratio: 16 / 7; }
+/* Recipe page: a flat banner, the title and details follow below it. */
+.recipe-hero { aspect-ratio: auto; height: clamp(9rem, 22vw, 16rem); margin-top: 0.5rem; }
+.recipe-hero + .title-row h1, .image-credit + .title-row h1 { margin-top: 0.5rem; }
+.recipe-hero + .title-row .title-actions, .image-credit + .title-row .title-actions { margin-top: 0.5rem; }
+.with-icon { display: inline-flex; align-items: center; gap: 0.5rem; }
+.with-icon svg { width: 20px; height: 20px; flex: none; }
 
 .image-preview {
   display: block;
@@ -475,7 +484,13 @@ details.disclosure[open] > summary { margin-bottom: 0.75rem; }
 .ideas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 0 1.5rem; margin-top: 1rem; }
 .idea-list h2 { font-size: 1.05rem; margin: 1rem 0 0.25rem; }
 .idea-list .plain-list { margin: 0; }
-.idea-list .plain-list > li { padding: 0.35rem 0; }
+.idea-list .plain-list > li { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; }
+.idea-list .plain-list > li > :first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.idea-actions { display: flex; gap: 0.25rem; flex: none; }
+.idea-actions form { margin: 0; }
+/* Small round icon buttons inside lists and rows. */
+.idea-actions .icon-button, .member-actions .icon-button { width: 2.25rem; min-width: 2.25rem; height: 2.25rem; min-height: 2.25rem; }
+.idea-actions .icon-button svg, .member-actions .icon-button svg { width: 18px; height: 18px; }
 .note-buttons { margin-top: 0.75rem; }
 .note-buttons form { margin: 0; }
 .entry-note {
@@ -519,12 +534,18 @@ details.disclosure[open] > summary { margin-bottom: 0.75rem; }
 
 /* ---------------------------------------------------------------- toast */
 
-.toast {
+.toasts {
   position: fixed;
   left: 50%;
   bottom: calc(1rem + var(--tabbar-height, 0px) + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.toast {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -632,8 +653,18 @@ details.disclosure[open] > summary { margin-bottom: 0.75rem; }
 
 /* ---------------------------------------------------------------- start page */
 
-.today-list { list-style: none; padding: 0; margin: 0 0 1rem; display: grid; gap: 0.75rem; }
-.today-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.today-list { list-style: none; padding: 0; margin: 0 0 1rem; display: grid; gap: 0.6rem; }
+.today-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
 .today-list li a:not(.button) { font-size: 1.15rem; }
 .onboarding { padding-left: 1.25rem; }
 .onboarding li { margin-bottom: 1.25rem; }
@@ -733,6 +764,19 @@ details.disclosure[open] > summary { margin-bottom: 0.75rem; }
   color: var(--text);
   box-shadow: 0 12px 40px color-mix(in srgb, var(--text) 25%, transparent);
 }
+.plan-dialog.wide { width: min(52rem, calc(100vw - 32px)); }
+.dialog-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+.dialog-toolbar select { width: auto; max-width: 100%; flex: 0 1 auto; }
+.dialog-toolbar strong { flex: 1; }
+.dialog-toolbar .btn-small { display: inline-flex; align-items: center; gap: 0.4rem; }
+.dialog-toolbar .btn-small svg { width: 18px; height: 18px; }
+.gallery-search { margin-bottom: 0.75rem; }
+.recipe-grid.gallery { margin: 0; grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr)); gap: 1rem 0.75rem; }
+.gallery-card { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 0.35rem; width: 100%; min-height: 0; padding: 0; border: none; background: none; color: var(--text); text-align: left; font: inherit; font-weight: normal; cursor: pointer; }
+.gallery-card:hover:not(:disabled) { background: none; }
+.gallery-card .recipe-card-image { width: 100%; }
+.gallery-card .recipe-card-title { font-size: 0.95rem; }
+.gallery-card:hover .recipe-card-image, .gallery-card:focus-visible .recipe-card-image { outline: 2px solid var(--accent); outline-offset: 2px; }
 .plan-dialog::backdrop { background: color-mix(in srgb, #000 45%, transparent); }
 .plan-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
 .plan-dialog-head h2 { margin: 0; font-size: 1.15rem; }
@@ -756,7 +800,6 @@ html { scroll-padding-top: calc(var(--header-height) + 0.5rem); }
 /* Start page: two columns on wide screens. */
 @media (min-width: 900px) {
   .home-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 0 3rem; align-items: start; }
-  .recipe-hero { aspect-ratio: 21 / 9; }
 }
 
 .entry-ingredients {
@@ -843,3 +886,128 @@ html { scroll-padding-top: calc(var(--header-height) + 0.5rem); }
 .skeleton-card { aspect-ratio: 4 / 3; }
 @keyframes skeleton-pulse { 50% { opacity: 0.5; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* ---------------------------------------------------------------- start page */
+
+.home-hello h1 { margin-bottom: 0.1rem; }
+.home-hello p { margin: 0 0 1rem; font-size: 1.1rem; }
+.home-section { margin-bottom: 1.5rem; }
+.home-section h2, .section-head h2 { margin-top: 1.5rem; }
+.section-head { align-items: center; }
+.section-head h2 { margin-bottom: 0.5rem; }
+.section-head .popover-anchor { margin-top: 1rem; }
+
+.meal-pill {
+  display: inline-block;
+  margin-bottom: 0.15rem;
+  padding: 0.05rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--text);
+  font-size: 0.8rem;
+}
+.today-list .meal-pill { display: table; }
+
+.chip-list { list-style: none; padding: 0; margin: 0 0 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chip-list li { margin: 0; }
+.chip-list a, .chip-list span {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
+  color: var(--text);
+  text-decoration: none;
+}
+.chip-list a:hover { border-color: var(--accent); color: var(--accent); }
+
+.book-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+  gap: 1rem;
+}
+.book-grid li { margin: 0; }
+.book-card { display: flex; flex-direction: column; gap: 0.2rem; color: var(--text); text-decoration: none; }
+.book-cover {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.2rem;
+  color: color-mix(in srgb, var(--accent) 60%, var(--bg));
+}
+.book-cover img { object-fit: cover; transition: transform 0.3s ease; }
+.book-card:hover .book-cover img { transform: scale(1.04); }
+.book-name { font-weight: 600; }
+.book-card:hover .book-name { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .book-cover img { transition: none; } }
+
+/* Slideshow of random recipes */
+.slideshow { position: relative; margin: 0 0 1rem; border-radius: 18px; overflow: hidden; background: var(--line); }
+.slides { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.slides::-webkit-scrollbar { display: none; }
+.slide {
+  position: relative;
+  flex: 0 0 100%;
+  height: clamp(14rem, 34vw, 24rem);
+  scroll-snap-align: start;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 30%, #2a2723);
+}
+.slide img { object-fit: cover; }
+.slide-initial { font-family: Georgia, "Times New Roman", serif; font-size: 5rem; opacity: 0.6; }
+.slide-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  padding: 3rem 1.25rem 3.5rem;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.72), rgb(0 0 0 / 0));
+}
+.slide-book { font-size: 0.85rem; opacity: 0.9; }
+.slide-title { font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.4rem, 3vw, 2.1rem); line-height: 1.2; }
+.slide:hover .slide-title { text-decoration: underline; }
+.slide:focus-visible { outline: 3px solid #fff; outline-offset: -6px; }
+.slide-controls {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.slide-controls .icon-button {
+  width: 2.25rem;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  background: rgb(0 0 0 / 0.45);
+  border: 1px solid rgb(255 255 255 / 0.6);
+  color: #fff;
+}
+.slide-controls .icon-button:hover { background: rgb(0 0 0 / 0.65); }
+.slide-controls svg { width: 18px; height: 18px; }
+.slide-dots { display: flex; gap: 0.3rem; padding: 0 0.35rem; }
+.slide-dots span { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: rgb(255 255 255 / 0.5); }
+.slide-dots span.active { background: #fff; }
+
+/* ---------------------------------------------------------------- several links */
+
+.import-list { list-style: none; padding: 0; margin: 0 0 1rem; }
+.import-list li { display: flex; gap: 0.6rem; padding: 0.45rem 0; border-bottom: 1px solid var(--line); margin: 0; }
+.import-state { width: 1.2rem; flex: none; text-align: center; color: var(--muted); }
+.import-list li.done .import-state { color: var(--accent); }
+.import-list li.failed .import-state { color: var(--error); }
+.import-text { min-width: 0; }
+.import-url { overflow-wrap: anywhere; color: var(--muted); }
+.import-error { display: block; font-size: 0.9rem; color: var(--error); }

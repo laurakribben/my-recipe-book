@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TrashIcon } from "@/components/icons";
 import { ConfirmButton } from "@/components/confirm-button";
 import { notFound } from "next/navigation";
 import { canEdit, getBookForUser } from "@/lib/books";
@@ -119,9 +120,9 @@ export default async function BookSettingsPage(props: Props) {
                   </td>
                   <td>
                     {editable && (
-                      <form action={removeMember.bind(null, book.id, m.user_id)}>
-                        <button type="submit" className="danger btn-small">
-                          Entfernen
+                      <form action={removeMember.bind(null, book.id, m.user_id)} className="member-actions">
+                        <button type="submit" className="danger icon-button" aria-label="Mitglied entfernen" title="Mitglied entfernen">
+                          <TrashIcon />
                         </button>
                       </form>
                     )}
@@ -136,9 +137,9 @@ export default async function BookSettingsPage(props: Props) {
                 </td>
                 <td>{ROLE_LABELS[i.role as BookRole]}</td>
                 <td>
-                  <form action={withdrawInvite.bind(null, book.id, i.id)}>
-                    <button type="submit" className="danger btn-small">
-                      Zurückziehen
+                  <form action={withdrawInvite.bind(null, book.id, i.id)} className="member-actions">
+                    <button type="submit" className="danger icon-button" aria-label="Einladung zurückziehen" title="Einladung zurückziehen">
+                      <TrashIcon />
                     </button>
                   </form>
                 </td>

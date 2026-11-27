@@ -10,7 +10,7 @@ import { AddToPlan } from "@/components/add-to-plan";
 import { RecordRecentView } from "@/components/recent";
 import { NutritionFacts } from "@/components/nutrition-facts";
 import { readNutrition } from "@/lib/nutrition";
-import { SettingsIcon } from "@/components/icons";
+import { CookIcon, SettingsIcon } from "@/components/icons";
 import { ShareRecipe } from "@/components/share-recipe";
 import { setRecipeVisibility } from "../actions";
 import { formatDay, getMyPlans, isIsoDate, today } from "@/lib/plans";
@@ -50,26 +50,9 @@ export default async function RecipePage(props: Props) {
           <Link href={`/books/${access.book.id}`}>← {access.book.name}</Link>
         </p>
       )}
-      <div className="title-row">
-        <h1>{recipe.title}</h1>
-        <div className="title-actions">
-          <ShareRecipe
-            title={recipe.title}
-            visibility={recipe.visibility}
-            bookName={access?.book.name ?? null}
-            setVisibility={access && canEdit(access.role) ? setRecipeVisibility.bind(null, recipe.id) : undefined}
-          />
-          {access && canEdit(access.role) && (
-            <Link href={`/recipes/${recipe.id}/edit`} className="button secondary icon-button" aria-label="Einstellungen" title="Einstellungen">
-              <SettingsIcon />
-            </Link>
-          )}
-        </div>
-      </div>
-
       {imageUrl(recipe.image_path) && (
         <div className="recipe-hero">
-          <Image src={imageUrl(recipe.image_path)!} alt={recipe.title} fill priority sizes="(max-width: 720px) 100vw, 680px" />
+          <Image src={imageUrl(recipe.image_path)!} alt={recipe.title} fill priority sizes="(max-width: 1536px) 100vw, 1536px" />
         </div>
       )}
       {imageUrl(recipe.image_path) && (recipe.image_credit || recipe.image_source_url) && (
@@ -85,6 +68,45 @@ export default async function RecipePage(props: Props) {
         </p>
       )}
 
+      <div className="title-row">
+        <h1>{recipe.title}</h1>
+        <div className="title-actions">
+          {user && (
+            <AddToPlan
+              recipeId={recipe.id}
+              plans={plans.map((p) => ({ id: p.id, name: p.name }))}
+              defaultDay={today()}
+              defaultServings={base}
+            />
+          )}
+          <ShareRecipe
+            title={recipe.title}
+            visibility={recipe.visibility}
+            bookName={access?.book.name ?? null}
+            setVisibility={access && canEdit(access.role) ? setRecipeVisibility.bind(null, recipe.id) : undefined}
+          />
+          {access && canEdit(access.role) && (
+            <Link href={`/recipes/${recipe.id}/edit`} className="button secondary icon-button" aria-label="Einstellungen" title="Einstellungen">
+              <SettingsIcon />
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <ul className="meta">
+        {recipe.servings && <li>{recipe.servings} Portionen</li>}
+        {recipe.prep_time && <li>Vorbereitung {recipe.prep_time}</li>}
+        {recipe.cook_time && <li>Back-/Kochzeit {recipe.cook_time}</li>}
+        {recipe.total_time && <li>Gesamt {recipe.total_time}</li>}
+      </ul>
+      {recipe.tags.length > 0 && (
+        <p className="tags">
+          {recipe.tags.map((t) => (
+            <span key={t}>{t}</span>
+          ))}
+        </p>
+      )}
+
       {(gemerkt === "this" || gemerkt === "next") && (
         <p className="notice success">
           Vorgemerkt für „{gemerkt === "this" ? "Diese Woche" : "Nächste Woche"}“.{" "}
@@ -97,37 +119,14 @@ export default async function RecipePage(props: Props) {
         </p>
       )}
       <div className="toolbar">
-        <Link href={`/recipes/${recipe.id}/cook`} className="button">
-          Kochmodus
+        <Link href={`/recipes/${recipe.id}/cook`} className="button with-icon">
+          <CookIcon /> Kochmodus
         </Link>
       </div>
-      {user && (
-        <AddToPlan
-          recipeId={recipe.id}
-          plans={plans.map((p) => ({ id: p.id, name: p.name }))}
-          defaultDay={today()}
-          defaultServings={base}
-        />
-      )}
 
       {recipe.status === "incomplete" && (
         <p className="notice warning">
           <strong>Unvollständig:</strong> {recipe.missing}
-        </p>
-      )}
-
-      <ul className="meta">
-        {recipe.servings && <li>{recipe.servings} Portionen</li>}
-        {recipe.prep_time && <li>Vorbereitung {recipe.prep_time}</li>}
-        {recipe.cook_time && <li>Back-/Kochzeit {recipe.cook_time}</li>}
-        {recipe.total_time && <li>Gesamt {recipe.total_time}</li>}
-      </ul>
-
-      {recipe.tags.length > 0 && (
-        <p className="tags">
-          {recipe.tags.map((t) => (
-            <span key={t}>{t}</span>
-          ))}
         </p>
       )}
 

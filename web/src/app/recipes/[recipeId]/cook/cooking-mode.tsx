@@ -1,5 +1,6 @@
 "use client";
 
+import { BackIcon, CloseIcon } from "@/components/icons";
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -278,8 +279,13 @@ function CookingModeClient({
               Zutaten
             </button>
           )}
-          <Link href={`/recipes/${recipeId}`} className="button secondary">
-            Beenden
+          <Link
+            href={`/recipes/${recipeId}`}
+            className="button secondary icon-button"
+            aria-label="Kochmodus beenden"
+            title="Kochmodus beenden"
+          >
+            <CloseIcon />
           </Link>
         </div>
       </header>
@@ -381,8 +387,15 @@ function CookingModeClient({
 
       {!finished && (
         <footer className="cook-nav">
-          <button type="button" className="secondary" onClick={() => go(-1)} disabled={pos === 0}>
-            Zurück
+          <button
+            type="button"
+            className="secondary icon-button"
+            onClick={() => go(-1)}
+            disabled={pos === 0}
+            aria-label="Vorheriger Schritt"
+            title="Vorheriger Schritt"
+          >
+            <BackIcon />
           </button>
           <button type="button" onClick={() => go(1)} disabled={steps.length === 0}>
             {pos === 0 ? "Los geht’s" : pos === steps.length ? "Fertig" : "Weiter"}
@@ -395,8 +408,14 @@ function CookingModeClient({
           <div className="cook-sheet-inner">
             <div className="row spread">
               <p className="cook-step-label">Zutaten</p>
-              <button type="button" className="secondary" onClick={() => setShowIngredients(false)}>
-                Schließen
+              <button
+                type="button"
+                className="secondary icon-button"
+                onClick={() => setShowIngredients(false)}
+                aria-label="Zutaten schließen"
+                title="Zutaten schließen"
+              >
+                <CloseIcon />
               </button>
             </div>
             {ingredientList}

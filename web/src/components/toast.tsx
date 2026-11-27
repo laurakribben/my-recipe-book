@@ -1,50 +1,62 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { TrashIcon } from "@/components/icons";
 
 type Toast = { id: number; message: string; action?: { label: string; run: () => Promise<unknown> | void } };
 
-// A tiny global store: any client component can call showToast(); <Toaster /> in the layout shows it.
-let current: Toast | null = null;
+// A tiny global store: any client component can call showToast(); <Toaster /> in the layout shows them.
+// At most MAX_TOASTS at once: removing many things in a row doesn't pile up messages.
+const MAX_TOASTS = 3;
+let toasts: Toast[] = [];
 let nextId = 1;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
 export function showToast(toast: Omit<Toast, "id">) {
-  current = { ...toast, id: nextId++ };
+  toasts = [...toasts, { ...toast, id: nextId++ }].slice(-MAX_TOASTS);
   emit();
 }
 
 function dismiss(id: number) {
-  if (current?.id === id) {
-    current = null;
+  if (toasts.some((t) => t.id === id)) {
+    toasts = toasts.filter((t) => t.id !== id);
     emit();
   }
 }
 
 const DURATION_MS = 7000;
+const EMPTY: Toast[] = [];
 
-/** Shows the latest toast at the bottom of the screen for a few seconds. */
+/** Shows the latest toasts (newest at the bottom) for a few seconds each. */
 export function Toaster() {
-  const toast = useSyncExternalStore(
+  const list = useSyncExternalStore(
     (l) => {
       listeners.add(l);
       return () => listeners.delete(l);
     },
-    () => current,
-    () => null,
+    () => toasts,
+    () => EMPTY,
   );
-  const [busy, setBusy] = useState(false);
+  if (list.length === 0) return null;
+  return (
+    <div className="toasts" role="status" aria-live="polite">
+      {list.map((t) => (
+        <ToastItem key={t.id} toast={t} />
+      ))}
+    </div>
+  );
+}
 
+function ToastItem({ toast }: { toast: Toast }) {
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (!toast) return;
     const timer = setTimeout(() => dismiss(toast.id), DURATION_MS);
     return () => clearTimeout(timer);
-  }, [toast]);
+  }, [toast.id]);
 
-  if (!toast) return null;
   return (
-    <div className="toast" role="status" aria-live="polite">
+    <div className="toast">
       <span>{toast.message}</span>
       {toast.action && (
         <button
@@ -72,7 +84,7 @@ export function Toaster() {
 }
 
 /**
- * A remove button with undo: calls `remove` (a server action that returns what was removed),
+ * A remove button (trash icon) with undo: calls `remove` (a server action that returns what was removed),
  * then offers "Rückgängig" in a toast, which passes that back to `restore`.
  */
 export function UndoableRemove<T>({
@@ -80,7 +92,7 @@ export function UndoableRemove<T>({
   restore,
   message,
   label = "Entfernen",
-  className = "danger btn-small",
+  className = "danger icon-button",
 }: {
   remove: () => Promise<T | null>;
   restore: (snapshot: T) => Promise<unknown>;
@@ -93,6 +105,8 @@ export function UndoableRemove<T>({
     <button
       type="button"
       className={className}
+      aria-label={label}
+      title={label}
       disabled={busy}
       onClick={async () => {
         setBusy(true);
@@ -104,7 +118,7 @@ export function UndoableRemove<T>({
         }
       }}
     >
-      {label}
+      <TrashIcon />
     </button>
   );
 }

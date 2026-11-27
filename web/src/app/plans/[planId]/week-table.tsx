@@ -48,6 +48,8 @@ function applyMove(entries: PlanEntry[], move: Move): PlanEntry[] {
           servings: null,
           note: null,
           ingredients: [],
+          nutrition: null,
+          nutrition_checked: true,
           created_at: "",
         },
       ];

@@ -315,6 +315,73 @@ export async function assignStepIngredientsAction(recipeId: string): Promise<Ass
   return null;
 }
 
+// ---------------------------------------------------------------- several links at once
+
+export type ImportResult = { ok: true; id: string; title: string; incomplete: boolean } | { ok: false; error: string };
+
+/**
+ * "Mehrere Links": reads one link with the AI and saves the recipe right away (with the
+ * website's picture), without the review step. The page calls this once per link.
+ */
+export async function importLinkAction(bookId: string, url: string, targetServings: number | null): Promise<ImportResult> {
+  const access = await getBookForUser(bookId);
+  if (!access || !canEdit(access.role)) return { ok: false, error: "Du darfst in diesem Buch keine Rezepte anlegen." };
+  if (!/^https?:\/\/\S+$/i.test(url) || url.length > 2000) return { ok: false, error: "Kein gültiger Link." };
+  if (isLoginWalled(url)) {
+    return { ok: false, error: "Braucht eine Anmeldung (z. B. Instagram) – bitte einzeln über „Text“ oder „Fotos“." };
+  }
+  if ((await aiCallsLeft(access.user.id, "extract")) <= 0) {
+    return { ok: false, error: `Tageslimit von ${aiLimit("extract")} KI-Rezepten erreicht.` };
+  }
+
+  try {
+    const servings =
+      targetServings !== null && Number.isInteger(targetServings) && targetServings >= 1 && targetServings <= 50
+        ? targetServings
+        : undefined;
+    const { draft, usage } = await extractRecipe({ kind: "page", page: await fetchPage(url) }, { targetServings: servings });
+    await recordAiUsage(access.user.id, "extract", usage);
+
+    const parsed = RecipeInput.safeParse({
+      ...draft,
+      source_url: draft.source_url || url,
+      visibility: "private",
+    });
+    if (!parsed.success) return { ok: false, error: "Auf der Seite wurde kein vollständiges Rezept gefunden." };
+
+    const id = crypto.randomUUID();
+    let imagePath: string | null = null;
+    if (/^https?:\/\//i.test(draft.suggested_image_url)) {
+      try {
+        const { bytes, type } = await fetchImage(draft.suggested_image_url);
+        if (isImageType(type)) imagePath = await storeRecipeImage(bookId, id, bytes, type);
+      } catch (error) {
+        console.error("Imported image could not be stored", error instanceof Error ? error.message : error);
+      }
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase.from("recipes").insert({
+      ...withImage(parsed.data, imagePath),
+      step_ingredients: isStepIngredients(draft.step_ingredients, parsed.data.steps.length) ? draft.step_ingredients : null,
+      id,
+      book_id: bookId,
+      created_by: access.user.id,
+    });
+    if (error) {
+      if (imagePath) await deleteRecipeImages([imagePath]);
+      console.error("Importing a recipe failed", { code: error.code, message: error.message });
+      return { ok: false, error: "Das Rezept konnte nicht gespeichert werden." };
+    }
+    revalidatePath(`/books/${bookId}`);
+    return { ok: true, id, title: parsed.data.title, incomplete: parsed.data.status === "incomplete" };
+  } catch (error) {
+    if (error instanceof FetchPageError || error instanceof ExtractionError) return { ok: false, error: error.message };
+    console.error("Importing a link failed", error);
+    return { ok: false, error: "Etwas ist schiefgelaufen." };
+  }
+}
+
 // ---------------------------------------------------------------- fill in what's missing
 
 export type CompleteState = { done: string[]; failed: string[] } | { error: string } | null;

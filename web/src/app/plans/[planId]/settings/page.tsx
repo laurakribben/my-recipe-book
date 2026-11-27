@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TrashIcon } from "@/components/icons";
 import { ConfirmButton } from "@/components/confirm-button";
 import { notFound } from "next/navigation";
 import { getPlanForUser, WEEKDAY_NAMES } from "@/lib/plans";
@@ -104,9 +105,9 @@ export default async function PlanSettingsPage(props: Props) {
                   </td>
                   <td>
                     {editable && (
-                      <form action={removePlanMember.bind(null, plan.id, m.user_id)}>
-                        <button type="submit" className="danger btn-small">
-                          Entfernen
+                      <form action={removePlanMember.bind(null, plan.id, m.user_id)} className="member-actions">
+                        <button type="submit" className="danger icon-button" aria-label="Mitglied entfernen" title="Mitglied entfernen">
+                          <TrashIcon />
                         </button>
                       </form>
                     )}
@@ -121,9 +122,9 @@ export default async function PlanSettingsPage(props: Props) {
                 </td>
                 <td>{ROLE_LABELS[i.role as BookRole]}</td>
                 <td>
-                  <form action={withdrawPlanInvite.bind(null, plan.id, i.id)}>
-                    <button type="submit" className="danger btn-small">
-                      Zurückziehen
+                  <form action={withdrawPlanInvite.bind(null, plan.id, i.id)} className="member-actions">
+                    <button type="submit" className="danger icon-button" aria-label="Einladung zurückziehen" title="Einladung zurückziehen">
+                      <TrashIcon />
                     </button>
                   </form>
                 </td>
