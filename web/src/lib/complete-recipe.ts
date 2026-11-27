@@ -44,6 +44,7 @@ export async function completeRecipe(
       done.push(c.label);
     } catch (error) {
       console.error(`Completing "${c.id}" failed`, error instanceof Error ? error.message : error);
+      if (error instanceof CompletionError && error.usage) await recordAiUsage(userId, "complete", error.usage);
       const userMessage =
         error instanceof FetchPageError || error instanceof ExtractionError || error instanceof CompletionError;
       failed.push(userMessage ? `${c.label}: ${error.message}` : c.label);

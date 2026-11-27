@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { canEdit, getBookForUser, isUuid } from "@/lib/books";
 import { aiCallsLeft, aiLimit, recordAiUsage } from "@/lib/ai-usage";
@@ -21,6 +22,8 @@ import {
   type RecipeDraft,
 } from "@/lib/recipe";
 import { completeRecipe } from "@/lib/complete-recipe";
+import { findDishImage, ingredientHints } from "@/lib/image-search";
+import { CompletionError, findFreeImage } from "@/lib/recipe-completion";
 import { nutritionFromForm } from "@/lib/nutrition";
 import { assignStepIngredients } from "@/lib/step-ingredients";
 import { createClient } from "@/lib/supabase/server";
@@ -82,6 +85,17 @@ export async function extractAction(bookId: string, _prev: ExtractState, formDat
       Number.isInteger(servingsValue) && servingsValue >= 1 && servingsValue <= 50 ? servingsValue : undefined;
     const result = await extractRecipe(input, { targetServings });
     await recordAiUsage(access.user.id, "extract", result.usage);
+
+    // No picture from the page (or text/photos): suggest a free photo of the dish.
+    if (!result.draft.suggested_image_url && (await aiCallsLeft(access.user.id, "complete")) > 0) {
+      const found = await findDishImage(result.draft.title, ingredientHints(result.draft.ingredients));
+      await recordAiUsage(access.user.id, "complete", found.usage);
+      if (found.image) {
+        result.draft.suggested_image_url = found.image.url;
+        result.draft.image_credit = found.image.credit;
+        result.draft.image_source_url = found.image.sourceUrl;
+      }
+    }
 
     const sourceUrl = String(formData.get("source_url") ?? "").trim();
     if (mode === "images" && /^https?:\/\//i.test(sourceUrl)) {
@@ -236,6 +250,10 @@ export async function createRecipe(bookId: string, _prev: SaveState, formData: F
     return { error: "Das Rezept konnte nicht gespeichert werden." };
   }
 
+  if (!imagePath && !declinedPicture(formData)) {
+    findImageLater(access.user.id, { id, book_id: bookId, title: parsed.data.title, ingredients: parsed.data.ingredients });
+  }
+
   revalidatePath(`/books/${bookId}`);
   redirect(`/recipes/${id}`);
 }
@@ -277,6 +295,14 @@ export async function updateRecipe(recipeId: string, _prev: SaveState, formData:
     return { error: "Das Rezept konnte nicht gespeichert werden." };
   }
   if (image.kind !== "keep") await deleteRecipeImages([current.image_path]);
+  if (!imagePath && image.kind !== "remove" && !declinedPicture(formData)) {
+    findImageLater(access.user.id, {
+      id: recipeId,
+      book_id: current.book_id,
+      title: parsed.data.title,
+      ingredients: parsed.data.ingredients,
+    });
+  }
 
   revalidatePath(`/recipes/${recipeId}`);
   revalidatePath(`/books/${current.book_id}`);
@@ -315,6 +341,42 @@ export async function assignStepIngredientsAction(recipeId: string): Promise<Ass
   return null;
 }
 
+// ---------------------------------------------------------------- pictures for recipes without one
+
+/** True if the form offered a picture and the user unticked it, or removed the picture. */
+function declinedPicture(formData: FormData): boolean {
+  if (formData.get("remove_image")) return true;
+  return Boolean(formData.get("suggested_image_url")) && !formData.get("use_suggested_image");
+}
+
+/**
+ * Saved without a picture (e.g. typed in by hand): looks for a free photo of the dish after
+ * answering, so saving stays quick. It shows up on the next visit of the recipe.
+ */
+function findImageLater(userId: string, recipe: Pick<Recipe, "id" | "book_id" | "title" | "ingredients">) {
+  after(async () => {
+    if ((await aiCallsLeft(userId, "complete")) <= 0) return;
+    try {
+      const found = await findFreeImage(recipe);
+      await recordAiUsage(userId, "complete", found.usage);
+      const supabase = await createClient();
+      // Only if no picture was added in the meantime.
+      const { data, error } = await supabase
+        .from("recipes")
+        .update(found.update)
+        .eq("id", recipe.id)
+        .is("image_path", null)
+        .select("id");
+      if ((error || !data?.length) && found.update.image_path) await deleteRecipeImages([found.update.image_path]);
+      revalidatePath(`/recipes/${recipe.id}`, "layout");
+      revalidatePath(`/books/${recipe.book_id}`);
+    } catch (error) {
+      if (error instanceof CompletionError && error.usage) await recordAiUsage(userId, "complete", error.usage);
+      else console.error("Finding a picture failed", error instanceof Error ? error.message : error);
+    }
+  });
+}
+
 // ---------------------------------------------------------------- several links at once
 
 export type ImportResult = { ok: true; id: string; title: string; incomplete: boolean } | { ok: false; error: string };
@@ -351,6 +413,7 @@ export async function importLinkAction(bookId: string, url: string, targetServin
 
     const id = crypto.randomUUID();
     let imagePath: string | null = null;
+    let credit = { image_credit: parsed.data.image_credit, image_source_url: parsed.data.image_source_url };
     if (/^https?:\/\//i.test(draft.suggested_image_url)) {
       try {
         const { bytes, type } = await fetchImage(draft.suggested_image_url);
@@ -359,10 +422,21 @@ export async function importLinkAction(bookId: string, url: string, targetServin
         console.error("Imported image could not be stored", error instanceof Error ? error.message : error);
       }
     }
+    // No picture on the page: a free photo of the dish instead.
+    if (!imagePath && (await aiCallsLeft(access.user.id, "complete")) > 0) {
+      try {
+        const found = await findFreeImage({ id, book_id: bookId, title: parsed.data.title, ingredients: parsed.data.ingredients });
+        await recordAiUsage(access.user.id, "complete", found.usage);
+        imagePath = found.update.image_path ?? null;
+        credit = { image_credit: found.update.image_credit ?? null, image_source_url: found.update.image_source_url ?? null };
+      } catch (error) {
+        if (error instanceof CompletionError && error.usage) await recordAiUsage(access.user.id, "complete", error.usage);
+      }
+    }
 
     const supabase = await createClient();
     const { error } = await supabase.from("recipes").insert({
-      ...withImage(parsed.data, imagePath),
+      ...withImage({ ...parsed.data, ...credit }, imagePath),
       step_ingredients: isStepIngredients(draft.step_ingredients, parsed.data.steps.length) ? draft.step_ingredients : null,
       id,
       book_id: bookId,

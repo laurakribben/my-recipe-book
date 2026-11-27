@@ -245,7 +245,7 @@ function ImageField({ draft }: { draft: RecipeDraft }) {
               setUseSuggested(e.target.checked);
             }}
           />
-          Bild von der Website übernehmen
+          Vorgeschlagenes Bild übernehmen
         </label>
       )}
       {useSuggested && <input type="hidden" name="use_suggested_image" value="1" />}
@@ -256,7 +256,13 @@ function ImageField({ draft }: { draft: RecipeDraft }) {
           Bild entfernen
         </label>
       )}
-      <span className="hint">Ein neues Bild ersetzt das bisherige.</span>
+      <span className="hint">
+        {suggestedUrl && !currentUrl
+          ? "Vorschlag von der Quellseite oder ein frei lizenziertes Foto, das die KI gefunden hat. Ein eigenes Bild ersetzt ihn."
+          : currentUrl
+            ? "Ein neues Bild ersetzt das bisherige."
+            : "Ohne eigenes Bild sucht die KI nach dem Speichern ein frei lizenziertes Foto."}
+      </span>
 
       {preview && (
         <div className="grid-2" style={{ marginTop: "0.75rem" }}>

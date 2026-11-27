@@ -7,18 +7,21 @@ const STEPS: Record<string, [label: string, fromSecond: number][]> = {
     ["Webseite wird geladen", 0],
     ["KI liest das Rezept", 3],
     ["Übersetzt und ordnet die Zutaten den Schritten zu", 10],
-    ["Fast fertig", 22],
+    ["Sucht ein Bild, falls die Seite keins hat", 20],
+    ["Fast fertig", 28],
   ],
   text: [
     ["KI liest den Text", 0],
     ["Übersetzt und ordnet die Zutaten den Schritten zu", 7],
-    ["Fast fertig", 18],
+    ["Sucht ein passendes Bild mit freier Lizenz", 16],
+    ["Fast fertig", 26],
   ],
   images: [
     ["Bilder werden verkleinert und hochgeladen", 0],
     ["KI liest die Bilder", 3],
     ["Übersetzt und ordnet die Zutaten den Schritten zu", 13],
-    ["Fast fertig", 26],
+    ["Sucht ein passendes Bild mit freier Lizenz", 23],
+    ["Fast fertig", 32],
   ],
 };
 

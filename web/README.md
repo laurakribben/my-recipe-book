@@ -49,6 +49,10 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
   protein and sugar per day (status + thin bar under the date, figures on hover) and for the week
   (meters with the DGE/WHO target ranges). No calorie totals. Each person can turn it off in the
   plan settings ("Anzeige").
+- Recipes without a picture (typed in, from text or photos, or a page without one) get a freely
+  licensed photo: the AI writes search words for [Openverse](https://openverse.org) (no key needed),
+  looks at up to 8 candidates and picks one; author, licence and source are shown below the picture.
+  This counts towards the completion budget.
 - Each user can run 30 AI extractions per 24 hours (`AI_DAILY_LIMIT`), to keep costs predictable.
   The small AI calls that complete recipes (nutrition, ingredients per step, shopping aisles) have their
   own budget of 300 per 24 hours (`AI_COMPLETION_DAILY_LIMIT`), so completing a whole book at once

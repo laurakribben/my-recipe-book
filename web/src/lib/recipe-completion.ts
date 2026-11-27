@@ -6,9 +6,17 @@ import { isStepIngredients, siteName, type Recipe } from "@/lib/recipe";
 import { readNutrition } from "@/lib/nutrition";
 import { estimateNutrition } from "@/lib/nutrition-ai";
 import { assignStepIngredients } from "@/lib/step-ingredients";
+import { downloadFoundImage, findDishImage, ingredientHints } from "@/lib/image-search";
 
-/** A failure with a message meant for the user (German). */
-export class CompletionError extends Error {}
+/** A failure with a message meant for the user (German); `usage` if the AI was asked anyway. */
+export class CompletionError extends Error {
+  constructor(
+    message: string,
+    readonly usage?: { input_tokens: number; output_tokens: number },
+  ) {
+    super(message);
+  }
+}
 
 /**
  * Things a recipe can be missing that the app can fill in by itself ("Fehlendes ergänzen"
@@ -32,26 +40,32 @@ export const COMPLETERS: Completer[] = [
   {
     id: "image",
     label: "Bild",
-    usesAi: false,
+    usesAi: true,
     isMissing: (r) => !r.image_path,
-    blockedReason: (r) => {
-      if (!r.source_url) return "Keine Quelle eingetragen – lade ein Bild hoch.";
-      if (isLoginWalled(r.source_url)) return "Die Quelle erfordert eine Anmeldung – lade ein Bild hoch.";
-      return null;
-    },
+    // Always possible: the picture of the source page, otherwise a free photo found by the AI.
+    blockedReason: () => null,
     run: async (r) => {
-      const page = await fetchPage(r.source_url!);
-      if (!page.imageUrl) throw new CompletionError("Auf der Quellseite wurde kein Bild gefunden.");
-      const { bytes, type } = await fetchImage(page.imageUrl);
-      if (!isImageType(type)) throw new CompletionError("Das Bild der Quellseite hat ein unbekanntes Format.");
-      const path = await storeRecipeImage(r.book_id, r.id, bytes, type);
-      return {
-        update: {
-          image_path: path,
-          image_credit: r.source_author || siteName(page.url),
-          image_source_url: page.url,
-        },
-      };
+      if (r.source_url && !isLoginWalled(r.source_url)) {
+        try {
+          const page = await fetchPage(r.source_url);
+          if (page.imageUrl) {
+            const { bytes, type } = await fetchImage(page.imageUrl);
+            if (isImageType(type)) {
+              const path = await storeRecipeImage(r.book_id, r.id, bytes, type);
+              return {
+                update: {
+                  image_path: path,
+                  image_credit: r.source_author || siteName(page.url),
+                  image_source_url: page.url,
+                },
+              };
+            }
+          }
+        } catch (error) {
+          console.error("Source picture not available", error instanceof Error ? error.message : error);
+        }
+      }
+      return findFreeImage(r);
     },
   },
   {
@@ -87,4 +101,16 @@ export function completionStatus(recipe: Recipe): CompletionItem[] {
     const missing = c.isMissing(recipe);
     return { id: c.id, label: c.label, missing, blockedReason: missing ? c.blockedReason(recipe) : null };
   });
+}
+
+/** A free photo of the dish (Openverse), stored for the recipe, with author and licence as credit. */
+export async function findFreeImage(
+  r: Pick<Recipe, "id" | "book_id" | "title" | "ingredients">,
+): Promise<{ update: Partial<Recipe>; usage: { input_tokens: number; output_tokens: number } }> {
+  const { image, usage } = await findDishImage(r.title, ingredientHints(r.ingredients));
+  if (!image) throw new CompletionError("Kein passendes Bild mit freier Lizenz gefunden.", usage);
+  const file = await downloadFoundImage(image);
+  if (!file) throw new CompletionError("Das gefundene Bild ließ sich nicht laden.", usage);
+  const path = await storeRecipeImage(r.book_id, r.id, file.bytes, file.type);
+  return { update: { image_path: path, image_credit: image.credit, image_source_url: image.sourceUrl }, usage };
 }
