@@ -28,9 +28,13 @@ layout: default
   {% endfor %}
 
   <h2>Steps</h2>
+  {% if page.steps.size > 0 %}
   <ol>
     {% for step in page.steps %}<li>{{ step }}</li>{% endfor %}
   </ol>
+  {% else %}
+  <p class="empty">No steps available yet. See the original post.</p>
+  {% endif %}
 
   {% if content != "" %}
   <h2>Notes</h2>
