@@ -23,7 +23,7 @@ import {
 } from "@/lib/recipe";
 import { completeRecipe } from "@/lib/complete-recipe";
 import { findDishImage, ingredientHints } from "@/lib/image-search";
-import { CompletionError, findFreeImage } from "@/lib/recipe-completion";
+import { CompletionError, findWebImage } from "@/lib/recipe-completion";
 import { nutritionFromForm } from "@/lib/nutrition";
 import { assignStepIngredients } from "@/lib/step-ingredients";
 import { createClient } from "@/lib/supabase/server";
@@ -357,7 +357,7 @@ function findImageLater(userId: string, recipe: Pick<Recipe, "id" | "book_id" | 
   after(async () => {
     if ((await aiCallsLeft(userId, "complete")) <= 0) return;
     try {
-      const found = await findFreeImage(recipe);
+      const found = await findWebImage(recipe);
       await recordAiUsage(userId, "complete", found.usage);
       const supabase = await createClient();
       // Only if no picture was added in the meantime.
@@ -425,7 +425,7 @@ export async function importLinkAction(bookId: string, url: string, targetServin
     // No picture on the page: a free photo of the dish instead.
     if (!imagePath && (await aiCallsLeft(access.user.id, "complete")) > 0) {
       try {
-        const found = await findFreeImage({ id, book_id: bookId, title: parsed.data.title, ingredients: parsed.data.ingredients });
+        const found = await findWebImage({ id, book_id: bookId, title: parsed.data.title, ingredients: parsed.data.ingredients });
         await recordAiUsage(access.user.id, "complete", found.usage);
         imagePath = found.update.image_path ?? null;
         credit = { image_credit: found.update.image_credit ?? null, image_source_url: found.update.image_source_url ?? null };

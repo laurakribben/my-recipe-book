@@ -65,7 +65,7 @@ export const COMPLETERS: Completer[] = [
           console.error("Source picture not available", error instanceof Error ? error.message : error);
         }
       }
-      return findFreeImage(r);
+      return findWebImage(r);
     },
   },
   {
@@ -103,12 +103,12 @@ export function completionStatus(recipe: Recipe): CompletionItem[] {
   });
 }
 
-/** A free photo of the dish (Openverse), stored for the recipe, with author and licence as credit. */
-export async function findFreeImage(
+/** A photo of the dish from a recipe page found by web search, stored for the recipe, credited to that site. */
+export async function findWebImage(
   r: Pick<Recipe, "id" | "book_id" | "title" | "ingredients">,
 ): Promise<{ update: Partial<Recipe>; usage: { input_tokens: number; output_tokens: number } }> {
   const { image, usage } = await findDishImage(r.title, ingredientHints(r.ingredients));
-  if (!image) throw new CompletionError("Kein passendes Bild mit freier Lizenz gefunden.", usage);
+  if (!image) throw new CompletionError("Im Web wurde kein passendes Bild gefunden.", usage);
   const file = await downloadFoundImage(image);
   if (!file) throw new CompletionError("Das gefundene Bild ließ sich nicht laden.", usage);
   const path = await storeRecipeImage(r.book_id, r.id, file.bytes, file.type);

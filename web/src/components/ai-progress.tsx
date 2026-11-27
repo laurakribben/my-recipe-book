@@ -13,14 +13,14 @@ const STEPS: Record<string, [label: string, fromSecond: number][]> = {
   text: [
     ["KI liest den Text", 0],
     ["Übersetzt und ordnet die Zutaten den Schritten zu", 7],
-    ["Sucht ein passendes Bild mit freier Lizenz", 16],
+    ["Sucht ein passendes Bild im Web", 16],
     ["Fast fertig", 26],
   ],
   images: [
     ["Bilder werden verkleinert und hochgeladen", 0],
     ["KI liest die Bilder", 3],
     ["Übersetzt und ordnet die Zutaten den Schritten zu", 13],
-    ["Sucht ein passendes Bild mit freier Lizenz", 23],
+    ["Sucht ein passendes Bild im Web", 23],
     ["Fast fertig", 32],
   ],
 };

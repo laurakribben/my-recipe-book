@@ -258,10 +258,10 @@ function ImageField({ draft }: { draft: RecipeDraft }) {
       )}
       <span className="hint">
         {suggestedUrl && !currentUrl
-          ? "Vorschlag von der Quellseite oder ein frei lizenziertes Foto, das die KI gefunden hat. Ein eigenes Bild ersetzt ihn."
+          ? "Vorschlag von der Quellseite oder ein Foto, das die KI auf einer Rezeptseite gefunden hat. Ein eigenes Bild ersetzt ihn."
           : currentUrl
             ? "Ein neues Bild ersetzt das bisherige."
-            : "Ohne eigenes Bild sucht die KI nach dem Speichern ein frei lizenziertes Foto."}
+            : "Ohne eigenes Bild sucht die KI nach dem Speichern ein passendes Foto im Web."}
       </span>
 
       {preview && (
