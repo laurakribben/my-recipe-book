@@ -48,7 +48,7 @@ export default async function PlanSettingsPage(props: Props) {
 
       {isOwner && (
         <section>
-          <h2>Teilen</h2>
+          <h2 id="teilen">Teilen</h2>
           <form action={sharePlan.bind(null, plan.id)} className="stack">
             <label>
               <span>E-Mail-Adresse</span>
@@ -70,7 +70,7 @@ export default async function PlanSettingsPage(props: Props) {
         </section>
       )}
 
-      <h2>Mitglieder</h2>
+      <h2 id={isOwner ? undefined : "teilen"}>Mitglieder</h2>
       <div className="table-wrap">
         <table>
           <tbody>
@@ -132,7 +132,7 @@ export default async function PlanSettingsPage(props: Props) {
 
       {isOwner ? (
         <>
-          <h2>Wochenbeginn</h2>
+          <h2 id="einstellungen">Wochenbeginn</h2>
           <form action={setWeekStart.bind(null, plan.id)} className="row">
             <select name="week_start" defaultValue={plan.week_start} style={{ width: "auto" }}>
               {WEEKDAY_NAMES.map((name, i) => (

@@ -18,6 +18,7 @@ import {
 } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 import { UndoableRemove } from "@/components/toast";
+import { SettingsIcon, ShareIcon } from "@/components/icons";
 import { AddEntryDialog } from "@/components/plan-dialogs";
 import { DraggableIdea } from "./draggable-idea";
 import { WeekTable } from "./week-table";
@@ -99,15 +100,27 @@ export default async function PlanWeekPage(props: Props) {
 
   return (
     <>
-      <div className="row spread">
-        <h1 style={{ marginBottom: 0 }}>{plan.name}</h1>
-        <div className="toolbar">
-          <Link href={`/plans/${plan.id}/einkauf`} className="button">
-            Einkaufsliste
+      <div className="title-row">
+        <h1>{plan.name}</h1>
+        <div className="title-actions">
+          <Link
+            href={`/plans/${plan.id}/settings#teilen`}
+            className="button secondary icon-button"
+            aria-label={role === "owner" ? "Teilen" : "Mitglieder"}
+            title={role === "owner" ? "Teilen" : "Mitglieder"}
+          >
+            <ShareIcon />
           </Link>
-          <Link href={`/plans/${plan.id}/settings`} className="button secondary">
-            {role === "owner" ? "Teilen & Einstellungen" : "Mitglieder"}
-          </Link>
+          {role === "owner" && (
+            <Link
+              href={`/plans/${plan.id}/settings#einstellungen`}
+              className="button secondary icon-button"
+              aria-label="Einstellungen"
+              title="Einstellungen"
+            >
+              <SettingsIcon />
+            </Link>
+          )}
         </div>
       </div>
       {plans.length > 1 && (
