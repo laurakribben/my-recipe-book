@@ -7,6 +7,9 @@ import { imageUrl } from "@/lib/images";
 import { SOURCE_TYPE_LABELS, siteName } from "@/lib/recipe";
 import { loadRecipe } from "@/lib/recipes";
 import { AddToPlan } from "@/components/add-to-plan";
+import { SettingsIcon } from "@/components/icons";
+import { ShareRecipe } from "@/components/share-recipe";
+import { setRecipeVisibility } from "../actions";
 import { formatDay, getMyPlans, isIsoDate, today } from "@/lib/plans";
 import { getUser } from "@/lib/supabase/server";
 import { parseServings } from "@/lib/servings";
@@ -43,7 +46,22 @@ export default async function RecipePage(props: Props) {
           <Link href={`/books/${access.book.id}`}>← {access.book.name}</Link>
         </p>
       )}
-      <h1>{recipe.title}</h1>
+      <div className="title-row">
+        <h1>{recipe.title}</h1>
+        <div className="title-actions">
+          <ShareRecipe
+            title={recipe.title}
+            visibility={recipe.visibility}
+            bookName={access?.book.name ?? null}
+            setVisibility={access && canEdit(access.role) ? setRecipeVisibility.bind(null, recipe.id) : undefined}
+          />
+          {access && canEdit(access.role) && (
+            <Link href={`/recipes/${recipe.id}/edit`} className="button secondary icon-button" aria-label="Einstellungen" title="Einstellungen">
+              <SettingsIcon />
+            </Link>
+          )}
+        </div>
+      </div>
 
       {imageUrl(recipe.image_path) && (
         <div className="recipe-hero">
@@ -83,11 +101,6 @@ export default async function RecipePage(props: Props) {
         <Link href={`/recipes/${recipe.id}/cook`} className="button">
           Kochmodus
         </Link>
-        {access && canEdit(access.role) && (
-          <Link href={`/recipes/${recipe.id}/edit`} className="button secondary">
-            Bearbeiten
-          </Link>
-        )}
       </div>
       {user && (
         <AddToPlan

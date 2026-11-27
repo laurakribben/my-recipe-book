@@ -396,3 +396,13 @@ export async function completeRecipeAction(recipeId: string, _prev: CompleteStat
   revalidatePath(`/books/${recipe.book_id}`);
   return { done, failed };
 }
+
+/** Share panel on the recipe page: switch between private and public. */
+export async function setRecipeVisibility(recipeId: string, visibility: "private" | "public") {
+  if (!isUuid(recipeId) || (visibility !== "private" && visibility !== "public")) return;
+  // RLS only lets owners and editors of the recipe's book change it.
+  const supabase = await createClient();
+  const { data } = await supabase.from("recipes").update({ visibility }).eq("id", recipeId).select("book_id").maybeSingle();
+  revalidatePath(`/recipes/${recipeId}`);
+  if (data) revalidatePath(`/books/${data.book_id}`);
+}
