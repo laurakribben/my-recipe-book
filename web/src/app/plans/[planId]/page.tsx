@@ -255,13 +255,6 @@ export default async function PlanWeekPage(props: Props) {
         </Link>
       </nav>
 
-      {editable && entries.some((e) => e.recipe_id || (e.ingredients ?? []).length > 0) && (
-        <form action={addWeekToShopping.bind(null, plan.id, weekStart)}>
-          <button type="submit" className="secondary">
-            Einkaufsliste für diese Woche
-          </button>
-        </form>
-      )}
 
       {entries.length === 0 && editable && (
         <div className="card empty-state">
@@ -288,7 +281,6 @@ export default async function PlanWeekPage(props: Props) {
           andere Mahlzeit ziehen.
         </p>
       )}
-      {weekBalance && <WeekBalance balance={weekBalance} />}
       <WeekTable
         planId={plan.id}
         days={days}
@@ -297,6 +289,16 @@ export default async function PlanWeekPage(props: Props) {
         editable={editable}
         dayBalances={dayBalances}
       />
+
+      {/* Below the table: the week's summary and what to do with it. */}
+      {weekBalance && <WeekBalance balance={weekBalance} />}
+      {editable && entries.some((e) => e.recipe_id || (e.ingredients ?? []).length > 0) && (
+        <form action={addWeekToShopping.bind(null, plan.id, weekStart)} className="toolbar">
+          <button type="submit" className="secondary">
+            Einkaufsliste für diese Woche
+          </button>
+        </form>
+      )}
     </>
   );
 }
