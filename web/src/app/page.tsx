@@ -48,6 +48,7 @@ export default async function HomePage(props: { searchParams: Promise<{ error?: 
         .select("id, plan_id, meal, recipe_id, title, servings, note")
         .in("plan_id", plans.map((p) => p.id))
         .eq("day", todayDate)
+        .order("position")
         .order("created_at")
     : { data: [] };
   const mealOrder = (meal: string) => MEALS.findIndex((m) => m.id === meal);

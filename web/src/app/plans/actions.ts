@@ -108,6 +108,7 @@ export type EntrySnapshot = {
   id: string;
   day: string;
   meal: string;
+  position: number;
   recipe_id: string | null;
   title: string;
   servings: number | null;
@@ -124,7 +125,7 @@ export async function deleteEntry(planId: string, entryId: string): Promise<Entr
     .delete()
     .eq("id", entryId)
     .eq("plan_id", planId)
-    .select("id, day, meal, recipe_id, title, servings, note")
+    .select("id, day, meal, position, recipe_id, title, servings, note")
     .maybeSingle();
   revalidatePath(`/plans/${planId}`);
   return (data as EntrySnapshot | null) ?? null;
@@ -139,6 +140,7 @@ export async function restoreEntry(planId: string, snapshot: EntrySnapshot) {
     plan_id: planId,
     day: snapshot.day,
     meal: isMeal(snapshot.meal) ? snapshot.meal : "abends",
+    ...(Number.isFinite(snapshot.position) ? { position: snapshot.position } : {}),
     recipe_id: snapshot.recipe_id,
     title: String(snapshot.title).slice(0, 200),
     servings: parseServingsField(String(snapshot.servings ?? "")),
@@ -506,18 +508,50 @@ export async function setWeekStart(planId: string, formData: FormData) {
 
 // ---------------------------------------------------------------- drag and drop in the week table
 
-/** Moves one entry to another day/meal. Returns false if it didn't work (the page then reloads). */
-export async function moveEntry(planId: string, entryId: string, day: string, meal: string): Promise<boolean> {
+/**
+ * Puts an entry into a cell at a given place: `orderedIds` is the cell's complete new order
+ * (including the moved entry). Returns false if it didn't work.
+ */
+export async function placeEntry(
+  planId: string,
+  entryId: string,
+  day: string,
+  meal: string,
+  orderedIds: string[],
+): Promise<boolean> {
   await requireEditor(planId);
-  if (!isUuid(entryId) || !isIsoDate(day) || !isMeal(meal)) return false;
+  if (
+    !isUuid(entryId) ||
+    !isIsoDate(day) ||
+    !isMeal(meal) ||
+    !Array.isArray(orderedIds) ||
+    orderedIds.length > 100 ||
+    !orderedIds.every((id) => typeof id === "string" && isUuid(id)) ||
+    !orderedIds.includes(entryId)
+  ) {
+    return false;
+  }
   const supabase = await createClient();
   const { error } = await supabase
     .from("meal_plan_entries")
     .update({ day, meal })
     .eq("id", entryId)
     .eq("plan_id", planId);
+  if (error) return false;
+  // Only entries that really are in this cell are renumbered.
+  const results = await Promise.all(
+    orderedIds.map((id, position) =>
+      supabase
+        .from("meal_plan_entries")
+        .update({ position })
+        .eq("id", id)
+        .eq("plan_id", planId)
+        .eq("day", day)
+        .eq("meal", meal),
+    ),
+  );
   revalidatePath(`/plans/${planId}`);
-  return !error;
+  return results.every((r) => !r.error);
 }
 
 /** Moves everything in one cell to another cell (added to what's there). */

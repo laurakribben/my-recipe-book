@@ -19,6 +19,8 @@ export type PlanEntry = {
   plan_id: string;
   day: string;
   meal: Meal;
+  /** Order within the cell (smaller first). */
+  position: number;
   recipe_id: string | null;
   title: string;
   servings: number | null;

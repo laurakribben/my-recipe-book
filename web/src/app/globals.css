@@ -715,3 +715,6 @@ details.disclosure[open] > summary { margin-bottom: 0.75rem; }
 .cell.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
 .drag-hint { margin: 0.25rem 0 0; }
 @media (max-width: 999px), (hover: none) { .drag-hint { display: none; } }
+/* Insert line while reordering entries in a cell */
+.cell-entries li.insert-before { box-shadow: inset 0 3px 0 var(--accent); }
+.cell-entries li.insert-after { box-shadow: inset 0 -3px 0 var(--accent); }

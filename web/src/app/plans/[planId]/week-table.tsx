@@ -6,7 +6,7 @@ import { AddEntryButton, EditEntryButton } from "@/components/plan-dialogs";
 import { showToast, UndoableRemove } from "@/components/toast";
 import type { PlanEntry } from "@/lib/plans";
 import { formatDay, MEALS, type Meal } from "@/lib/week";
-import { deleteEntry, moveCell, moveEntry, planIdeaAt, restoreEntry, updateEntry } from "../actions";
+import { deleteEntry, moveCell, placeEntry, planIdeaAt, restoreEntry, updateEntry } from "../actions";
 
 /** What is being dragged; travels in dataTransfer under this type. */
 export const DRAG_TYPE = "application/x-recipebook-plan";
@@ -16,14 +16,18 @@ export type DragPayload =
   | { kind: "idea"; id: string; title: string; recipe_id: string | null };
 
 type Move =
-  | { kind: "entry"; id: string; day: string; meal: Meal }
+  | { kind: "entry"; id: string; day: string; meal: Meal; orderedIds: string[] }
   | { kind: "cell"; fromDay: string; fromMeal: Meal; day: string; meal: Meal }
   | { kind: "idea"; id: string; title: string; recipe_id: string | null; day: string; meal: Meal };
 
 function applyMove(entries: PlanEntry[], move: Move): PlanEntry[] {
   switch (move.kind) {
     case "entry":
-      return entries.map((e) => (e.id === move.id ? { ...e, day: move.day, meal: move.meal } : e));
+      return entries.map((e) => {
+        const position = move.orderedIds.indexOf(e.id);
+        if (e.id === move.id) return { ...e, day: move.day, meal: move.meal, position };
+        return position >= 0 && e.day === move.day && e.meal === move.meal ? { ...e, position } : e;
+      });
     case "cell":
       return entries.map((e) =>
         e.day === move.fromDay && e.meal === move.fromMeal ? { ...e, day: move.day, meal: move.meal } : e,
@@ -38,12 +42,20 @@ function applyMove(entries: PlanEntry[], move: Move): PlanEntry[] {
           meal: move.meal,
           recipe_id: move.recipe_id,
           title: move.title,
+          position: Number.MAX_SAFE_INTEGER,
           servings: null,
           note: null,
           created_at: "",
         },
       ];
   }
+}
+
+/** Entries of one cell in their order. */
+function cellOf(entries: PlanEntry[], day: string, meal: Meal): PlanEntry[] {
+  return entries
+    .filter((e) => e.day === day && (e.meal ?? "abends") === meal)
+    .sort((a, b) => a.position - b.position);
 }
 
 function readPayload(e: DragEvent): DragPayload | null {
@@ -69,19 +81,39 @@ export function WeekTable({ planId, days, todayDate, entries: savedEntries, edit
   const [entries, applyOptimistic] = useOptimistic(savedEntries, applyMove);
   const [, startTransition] = useTransition();
   const [over, setOver] = useState<string | null>(null);
+  // Where an entry would be inserted: before or after the entry under the pointer.
+  const [insertAt, setInsertAt] = useState<{ id: string; after: boolean } | null>(null);
 
-  function drop(e: DragEvent, day: string, meal: Meal) {
+  /**
+   * Drop onto a cell. `beforeId`/`after` place a dragged entry next to another entry;
+   * without them it goes to the end of the cell.
+   */
+  function drop(e: DragEvent, day: string, meal: Meal, target?: { id: string; after: boolean }) {
     e.preventDefault();
+    e.stopPropagation();
     setOver(null);
+    setInsertAt(null);
     const payload = readPayload(e);
     if (!payload) return;
     if (payload.kind === "cell" && payload.day === day && payload.meal === meal) return;
     startTransition(async () => {
       let ok = true;
       if (payload.kind === "entry") {
-        if (entries.some((x) => x.id === payload.id && x.day === day && x.meal === meal)) return;
-        applyOptimistic({ kind: "entry", id: payload.id, day, meal });
-        ok = await moveEntry(planId, payload.id, day, meal);
+        const ids = cellOf(entries, day, meal)
+          .map((x) => x.id)
+          .filter((id) => id !== payload.id && !id.startsWith("temp-"));
+        let index = ids.length;
+        if (target && target.id !== payload.id) {
+          const at = ids.indexOf(target.id);
+          if (at >= 0) index = target.after ? at + 1 : at;
+        } else if (target && target.id === payload.id) {
+          return; // dropped onto itself
+        }
+        const orderedIds = [...ids.slice(0, index), payload.id, ...ids.slice(index)];
+        const before = cellOf(entries, day, meal).map((x) => x.id).join();
+        if (before === orderedIds.join()) return; // nothing changed
+        applyOptimistic({ kind: "entry", id: payload.id, day, meal, orderedIds });
+        ok = await placeEntry(planId, payload.id, day, meal, orderedIds);
       } else if (payload.kind === "cell") {
         applyOptimistic({ kind: "cell", fromDay: payload.day, fromMeal: payload.meal, day, meal });
         ok = await moveCell(planId, payload.day, payload.meal, day, meal);
@@ -117,7 +149,7 @@ export function WeekTable({ planId, days, todayDate, entries: savedEntries, edit
               {day === todayDate && <span className="badge">heute</span>}
             </h2>
             {MEALS.map((meal, m) => {
-              const cellEntries = entries.filter((e) => e.day === day && (e.meal ?? "abends") === meal.id);
+              const cellEntries = cellOf(entries, day, meal.id);
               return (
                 <div
                   key={meal.id}
@@ -134,9 +166,17 @@ export function WeekTable({ planId, days, todayDate, entries: savedEntries, edit
                     e.preventDefault();
                     e.dataTransfer.dropEffect = "move";
                     if (over !== `${day}|${meal.id}`) setOver(`${day}|${meal.id}`);
+                    if (insertAt) setInsertAt(null);
                   }}
                   onDragLeave={(e) => {
-                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(null);
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setOver(null);
+                      setInsertAt(null);
+                    }
+                  }}
+                  onDragEnd={() => {
+                    setOver(null);
+                    setInsertAt(null);
                   }}
                   onDrop={(e) => drop(e, day, meal.id)}
                 >
@@ -152,10 +192,27 @@ export function WeekTable({ planId, days, todayDate, entries: savedEntries, edit
                         <li
                           key={e.id}
                           draggable={editable && !e.id.startsWith("temp-")}
+                          className={
+                            insertAt?.id === e.id ? (insertAt.after ? "insert-after" : "insert-before") : undefined
+                          }
                           onDragStart={(ev) => {
                             ev.stopPropagation();
                             ev.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ kind: "entry", id: e.id }));
                             ev.dataTransfer.effectAllowed = "move";
+                          }}
+                          onDragOver={(ev) => {
+                            if (!editable || !ev.dataTransfer.types.includes(DRAG_TYPE)) return;
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            ev.dataTransfer.dropEffect = "move";
+                            const box = ev.currentTarget.getBoundingClientRect();
+                            const after = ev.clientY > box.top + box.height / 2;
+                            if (insertAt?.id !== e.id || insertAt.after !== after) setInsertAt({ id: e.id, after });
+                            if (over !== `${day}|${meal.id}`) setOver(`${day}|${meal.id}`);
+                          }}
+                          onDrop={(ev) => {
+                            const box = ev.currentTarget.getBoundingClientRect();
+                            drop(ev, day, meal.id, { id: e.id, after: ev.clientY > box.top + box.height / 2 });
                           }}
                         >
                           <div className="entry-text">

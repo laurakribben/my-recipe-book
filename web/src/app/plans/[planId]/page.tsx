@@ -55,10 +55,11 @@ export default async function PlanWeekPage(props: Props) {
   const supabase = await createClient();
   const { data: entryRows } = await supabase
     .from("meal_plan_entries")
-    .select("id, plan_id, day, meal, recipe_id, title, servings, note, created_at")
+    .select("id, plan_id, day, meal, position, recipe_id, title, servings, note, created_at")
     .eq("plan_id", plan.id)
     .gte("day", days[0])
     .lte("day", days[6])
+    .order("position")
     .order("created_at");
   const entries = (entryRows ?? []) as PlanEntry[];
 

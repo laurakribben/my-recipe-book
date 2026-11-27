@@ -29,7 +29,7 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
 - Wochenplan (`/plans`): each user gets a personal meal plan (a table of days × meals – Morgens,
   Mittags, Abends, Snack – on wide screens, a list on phones; recipes or free entries, servings
   and a note per entry; with a mouse, entries, whole cells and noted recipes can be dragged onto
-  another day or meal) that can be shared like a recipe book. "Einkaufsliste für diese
+  another day or meal, and entries can be reordered within a cell) that can be shared like a recipe book. "Einkaufsliste für diese
   Woche" puts the ingredients of the week's recipes, scaled to the planned servings, on the plan's
   shared shopping list. Viewers of a plan can tick items off but change nothing else.
   The owner chooses the first day of the week. On a recipe page, "Merken für: Diese Woche /
@@ -56,7 +56,8 @@ Next.js app with logins, shared recipe books and AI recipe extraction.
    `supabase/migrations/0006_meal_plans.sql` (meal plans and shopping lists) and
    `supabase/migrations/0007_week_start_and_ideas.sql` (week start, idea lists) and
    `supabase/migrations/0008_search_and_aisles.sql` (search across books, shopping list aisles) and
-   `supabase/migrations/0009_meal_slots.sql` (Morgens/Mittags/Abends/Snack in the meal plan).
+   `supabase/migrations/0009_meal_slots.sql` (Morgens/Mittags/Abends/Snack in the meal plan) and
+   `supabase/migrations/0010_entry_position.sql` (order of entries within a cell).
 3. **Authentication → Sign In / Providers → Email**: keep Email enabled. Under **User Signups**,
    turn **Allow new users to sign up** off (the book is invite-only).
 4. **Authentication → URL Configuration**: set **Site URL** to the app's address
